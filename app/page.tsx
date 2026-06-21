@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Timer, RefreshCw, Trophy } from 'lucide-react';
+import { ArrowLeft, Timer, Trophy } from 'lucide-react';
 import { generateRouletteTask, RouletteTask } from '@/lib/roulette';
 
 export default function TrainPage() {
@@ -12,13 +12,14 @@ export default function TrainPage() {
   const [score, setScore] = useState(0);
   const [totalAttempts, setTotalAttempts] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imagePrompt, setImagePrompt] = useState<string>('');
 
   const answerInputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const startTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
+    
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
@@ -47,13 +48,11 @@ export default function TrainPage() {
     setUserAnswer('');
     setIsCorrect(null);
     setTimeLeft(60);
-    setImageUrl(null);
+    setImagePrompt('');
 
     const task = generateRouletteTask();
     setCurrentTask(task);
-
-    // Здесь будет вызов Grok Imagine в будущем
-    setImageUrl(task.imagePrompt);
+    setImagePrompt(task.imagePrompt);
 
     setIsLoading(false);
 
@@ -67,6 +66,7 @@ export default function TrainPage() {
   const handleSubmit = () => {
     if (!currentTask || !userAnswer) return;
     stopTimer();
+
     setTotalAttempts(prev => prev + 1);
     const answerNum = parseInt(userAnswer);
     const isAnswerCorrect = answerNum === currentTask.correctAnswer;
@@ -132,17 +132,20 @@ export default function TrainPage() {
                 {currentTask.description}
               </p>
 
-              {/* Реальное изображение / промпт */}
+              {/* Grok Imagine Image */}
               <div className="bg-zinc-950 border border-white/10 rounded-3xl h-[420px] mb-10 flex items-center justify-center overflow-hidden relative">
-                {imageUrl ? (
-                  <div className="text-center p-8">
-                    <p className="text-white/60 mb-4">Grok Imagine would generate here:</p>
-                    <div className="text-xs text-white/40 max-w-md mx-auto break-all">
-                      {currentTask.imagePrompt}
-                    </div>
-                  </div>
+                {imagePrompt ? (
+                  <img 
+                    src={`https://grok.x.ai/generated-image?prompt=${encodeURIComponent(imagePrompt)}`} 
+                    alt="Roulette table with bets"
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      // Fallback text
+                    }}
+                  />
                 ) : (
-                  <p className="text-white/30">Loading image...</p>
+                  <p className="text-white/30">Generating image...</p>
                 )}
               </div>
 
