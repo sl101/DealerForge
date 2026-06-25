@@ -53,11 +53,15 @@ function getStreetPositions(num: number): string {
 }
 
 function getCornerPositions(num: number): string {
-  if (num === 0) return '0-1-2-3';
-  if (num <= 3) return '0-1-2-3';
+  if (num === 0 || num <= 3) return '0-1-2-3';
 
   if (num % 3 === 1) return `${num}-${num + 1}-${num + 3}-${num + 4}`;
   if (num % 3 === 2) return `${num - 1}-${num}-${num + 2}-${num + 3}`;
+  
+  // For right edge numbers (like 36, 33, etc.)
+  if (num % 3 === 0) {
+    return `${num - 2}-${num - 1}-${num + 1}-${num + 2}`; // safe version
+  }
   return `${num - 2}-${num - 1}-${num + 1}-${num + 2}`;
 }
 

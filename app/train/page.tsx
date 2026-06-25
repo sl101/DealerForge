@@ -22,23 +22,13 @@ export default function TrainPage() {
 
   const { user } = useAuth();
 
-  // Start countdown timer
   const startTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    
     timerRef.current = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(timerRef.current!);
-          handleTimeUp();
-          return 0;
-        }
-        return prev - 1;
-      });
+      setTimeLeft(prev => prev <= 1 ? 0 : prev - 1);
     }, 1000);
   };
 
-  // Stop countdown timer
   const stopTimer = () => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -46,11 +36,6 @@ export default function TrainPage() {
     }
   };
 
-  const handleTimeUp = () => {
-    if (currentTask) setIsCorrect(false);
-  };
-
-  // Generate new training task
   const generateNewTask = async () => {
     setIsLoading(true);
     setUserAnswer('');
@@ -71,14 +56,12 @@ export default function TrainPage() {
     }, 400);
   };
 
-  // Handle answer submission
   const handleSubmit = () => {
     if (!currentTask || !userAnswer) return;
     stopTimer();
 
     setTotalAttempts(prev => prev + 1);
-    const answerNum = parseInt(userAnswer);
-    const isAnswerCorrect = answerNum === currentTask.correctAnswer;
+    const isAnswerCorrect = parseInt(userAnswer) === currentTask.correctAnswer;
     setIsCorrect(isAnswerCorrect);
 
     if (isAnswerCorrect) {
@@ -86,9 +69,12 @@ export default function TrainPage() {
       setScore(prev => prev + points);
     }
 
-    // Show auth modal for guest users after 3 successful attempts
+    // Clear input after submit
+    setUserAnswer('');
+
+    // Show auth modal for guests after 3 successful attempts
     if (isAnswerCorrect && !user && totalAttempts + 1 >= 3) {
-      setTimeout(() => setShowAuthModal(true), 1000);
+      setTimeout(() => setShowAuthModal(true), 800);
     }
   };
 
@@ -99,14 +85,12 @@ export default function TrainPage() {
     generateNewTask();
   };
 
-  // Cleanup timer on component unmount
   useEffect(() => {
     return () => stopTimer();
   }, []);
 
   return (
     <div className="min-h-screen bg-[#1a1a2e] text-[#e0f2fe]">
-      {/* Header */}
       <header className="glass sticky top-0 z-50 border-b border-white/10">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <button onClick={() => window.history.back()} className="flex items-center gap-2 text-[#67e8f9] hover:text-white">
@@ -140,7 +124,6 @@ export default function TrainPage() {
           </div>
         ) : (
           <div className="space-y-10">
-            {/* Timer */}
             <div className="flex justify-center">
               <div className="glass px-12 py-5 rounded-3xl flex items-center gap-4 text-4xl font-mono tracking-widest shadow-xl">
                 <Timer className="text-[#67e8f9]" /> {timeLeft}
@@ -152,17 +135,14 @@ export default function TrainPage() {
                 {currentTask.description}
               </p>
 
-              {/* Image area */}
               <div className="bg-zinc-950 border border-white/10 rounded-3xl h-[460px] mb-10 flex items-center justify-center overflow-hidden relative">
-                {imagePrompt ? (
+                {imagePrompt && (
                   <div className="text-center p-6">
                     <p className="text-white/60 mb-4">Task Visualization</p>
                     <div className="text-xs text-white/40 max-w-md mx-auto break-words">
                       {imagePrompt.substring(0, 220)}...
                     </div>
                   </div>
-                ) : (
-                  <p className="text-white/30">Loading image...</p>
                 )}
               </div>
 
@@ -202,7 +182,6 @@ export default function TrainPage() {
         )}
       </div>
 
-      {/* Auth suggestion modal for guests */}
       <AuthModal 
         isOpen={showAuthModal} 
         onClose={() => setShowAuthModal(false)} 

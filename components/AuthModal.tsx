@@ -1,5 +1,6 @@
 'use client';
 
+import { X } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -9,7 +10,7 @@ interface AuthModalProps {
   message?: string;
 }
 
-export default function AuthModal({ isOpen, onClose, message = "Save your progress and compete on the global leaderboard!" }: AuthModalProps) {
+export default function AuthModal({ isOpen, onClose, message = "Great work!" }: AuthModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
@@ -18,17 +19,13 @@ export default function AuthModal({ isOpen, onClose, message = "Save your progre
 
   const handleSubmit = async () => {
     if (!email || !password) return;
-    
     setLoading(true);
     try {
-      if (isLogin) {
-        await signIn(email, password);
-      } else {
-        await signUp(email, password);
-      }
+      if (isLogin) await signIn(email, password);
+      else await signUp(email, password);
       onClose();
     } catch (error: any) {
-      alert(error.message || 'Something went wrong');
+      alert(error.message || 'Error');
     }
     setLoading(false);
   };
@@ -36,21 +33,28 @@ export default function AuthModal({ isOpen, onClose, message = "Save your progre
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
-      <div className="glass max-w-md w-full rounded-3xl p-8 relative">
-        <h2 className="text-3xl font-bold text-center mb-3">Join DealerForge</h2>
+    <div className="fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center p-4">
+      <div className="glass max-w-md w-full rounded-3xl p-8 relative shadow-2xl">
+        <button 
+          onClick={onClose} 
+          className="absolute top-5 right-5 text-white/70 hover:text-white"
+        >
+          <X size={28} />
+        </button>
+
+        <h2 className="text-3xl font-bold text-center mb-2">Join DealerForge</h2>
         <p className="text-center text-white/70 mb-8 leading-relaxed">{message}</p>
 
-        <div className="flex gap-2 mb-8">
+        <div className="flex bg-zinc-900 rounded-2xl p-1 mb-8">
           <button 
             onClick={() => setIsLogin(true)}
-            className={`flex-1 py-3 rounded-2xl font-medium ${isLogin ? 'bg-[#67e8f9] text-black' : 'bg-white/10'}`}
+            className={`flex-1 py-3 rounded-xl font-medium ${isLogin ? 'bg-[#67e8f9] text-black' : ''}`}
           >
             Login
           </button>
           <button 
             onClick={() => setIsLogin(false)}
-            className={`flex-1 py-3 rounded-2xl font-medium ${!isLogin ? 'bg-[#67e8f9] text-black' : 'bg-white/10'}`}
+            className={`flex-1 py-3 rounded-xl font-medium ${!isLogin ? 'bg-[#67e8f9] text-black' : ''}`}
           >
             Register
           </button>
@@ -61,28 +65,25 @@ export default function AuthModal({ isOpen, onClose, message = "Save your progre
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full mb-4 bg-zinc-900 border border-white/20 rounded-2xl px-6 py-4 text-lg"
+          className="w-full mb-4 bg-zinc-900 border border-white/30 rounded-2xl px-6 py-4 text-lg"
         />
         <input
           type="password"
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full mb-8 bg-zinc-900 border border-white/20 rounded-2xl px-6 py-4 text-lg"
+          className="w-full mb-8 bg-zinc-900 border border-white/30 rounded-2xl px-6 py-4 text-lg"
         />
 
         <button 
           onClick={handleSubmit}
           disabled={loading || !email || !password}
-          className="w-full bg-[#67e8f9] hover:bg-[#22d3ee] disabled:opacity-70 text-black font-semibold py-4 rounded-3xl text-lg mb-4 transition-all"
+          className="w-full bg-[#67e8f9] text-black font-semibold py-4 rounded-3xl text-lg disabled:opacity-50"
         >
           {loading ? 'Processing...' : isLogin ? 'Sign In' : 'Create Account'}
         </button>
 
-        <button 
-          onClick={onClose}
-          className="w-full text-white/60 py-3 hover:text-white/80 transition-colors"
-        >
+        <button onClick={onClose} className="w-full mt-6 text-white/60 hover:text-white py-3">
           Continue as Guest
         </button>
       </div>
