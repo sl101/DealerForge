@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import GlobalAuthModal from "@/components/GlobalAuthModal";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "DealerForge",
   description: "Train Like a Pro Dealer",
-  icons: { icon: "/favicon.ico" },
 };
 
 export default function RootLayout({
@@ -21,6 +21,7 @@ export default function RootLayout({
       <body className={`${inter.className} bg-[#1a1a2e] text-[#e0f2fe]`}>
         <AuthProvider>
           {children}
+          <GlobalAuthModal />
         </AuthProvider>
       </body>
     </html>

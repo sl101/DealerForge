@@ -5,6 +5,7 @@ import { ArrowLeft, Timer, Trophy } from 'lucide-react';
 import { generateRouletteTask, RouletteTask } from '@/lib/roulette';
 import AuthModal from '@/components/AuthModal';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 export default function TrainPage() {
   const [currentTask, setCurrentTask] = useState<RouletteTask | null>(null);
@@ -56,7 +57,7 @@ export default function TrainPage() {
     }, 400);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!currentTask || !userAnswer) return;
     stopTimer();
 
@@ -69,11 +70,25 @@ export default function TrainPage() {
       setScore(prev => prev + points);
     }
 
-    // Clear input after submit
+    // Clear input
     setUserAnswer('');
 
-    // Show auth modal for guests after 3 successful attempts
-    if (isAnswerCorrect && !user && totalAttempts + 1 >= 3) {
+    // Save result to database if user is logged in
+    if (isAnswerCorrect && user) {
+      const newScore = score + (isAnswerCorrect ? Math.max(40, Math.floor(timeLeft * 6)) : 0);
+      
+      await supabase
+        .from('leaderboard')
+        .upsert({
+          user_id: user.id,
+          score: newScore,
+          tasks_solved: totalAttempts + 1,
+          accuracy: Math.round((newScore / ((totalAttempts + 1) * 50)) * 100) || 0
+        });
+    }
+
+    // Show auth modal for guests after successful attempt
+    if (isAnswerCorrect && !user) {
       setTimeout(() => setShowAuthModal(true), 800);
     }
   };
