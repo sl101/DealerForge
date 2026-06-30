@@ -57,7 +57,7 @@ export default function TrainPage() {
     }, 400);
   };
 
-  const handleSubmit = async () => {
+   const handleSubmit = async () => {
     if (!currentTask || !userAnswer) return;
     stopTimer();
 
@@ -70,10 +70,9 @@ export default function TrainPage() {
       setScore(prev => prev + points);
     }
 
-    // Clear input
     setUserAnswer('');
 
-    // Save result to database if user is logged in
+    // Save to leaderboard if logged in
     if (isAnswerCorrect && user) {
       const newScore = score + (isAnswerCorrect ? Math.max(40, Math.floor(timeLeft * 6)) : 0);
       
@@ -87,8 +86,8 @@ export default function TrainPage() {
         });
     }
 
-    // Show auth modal for guests after successful attempt
-    if (isAnswerCorrect && !user) {
+    // Show modal after 2 successful attempts for guests
+    if (isAnswerCorrect && !user && totalAttempts + 1 >= 2) {
       setTimeout(() => setShowAuthModal(true), 800);
     }
   };
@@ -183,14 +182,16 @@ export default function TrainPage() {
               >
                 Submit Answer
               </button>
-              <button onClick={nextTask} className="flex-1 border border-white/30 hover:bg-white/5 py-7 rounded-3xl text-2xl">Skip</button>
+              <button onClick={nextTask} className="flex-1 border border-white/30 hover:bg-white/5 py-7 rounded-3xl text-2xl text-white">Skip</button>
             </div>
 
             {isCorrect !== null && (
               <div className={`p-10 rounded-3xl text-center border-2 ${isCorrect ? 'border-green-500 bg-green-950/30' : 'border-red-500 bg-red-950/30'}`}>
                 <p className="text-5xl mb-4">{isCorrect ? '🎉 Perfect!' : '😔 Wrong'}</p>
                 <p className="text-3xl">Correct: <span className="font-mono font-bold">{currentTask.correctAnswer}</span></p>
-                <button onClick={nextTask} className="mt-10 bg-white/10 hover:bg-white/20 px-14 py-5 rounded-2xl text-xl">Next Task →</button>
+                <button onClick={nextTask} className="mt-10 bg-white/10 hover:bg-white/20 px-14 py-5 rounded-2xl text-xl text-white border border-white/30">
+                  Next Task →
+                </button>
               </div>
             )}
           </div>

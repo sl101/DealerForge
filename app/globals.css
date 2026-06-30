@@ -6,7 +6,6 @@
 	--background: #1a1a2e;
 	--foreground: #e0f2fe;
 	--primary: #67e8f9;
-	--primary-hover: #22d3ee;
 	--accent: #a5b4fc;
 	--card: #16213e;
 	--border: #334155;
@@ -18,8 +17,25 @@ body {
 	font-family: 'Inter', system-ui, sans-serif;
 }
 
+/* Glass effect for cards */
 .glass {
-	background: rgba(22, 33, 62, 0.85);
-	backdrop-filter: blur(12px);
+	background: rgba(22, 33, 62, 0.92);
+	backdrop-filter: blur(16px);
 	border: 1px solid var(--border);
+}
+
+/* Ensure readable text */
+h1,
+h2,
+h3,
+p,
+span,
+div,
+label {
+	color: var(--foreground);
+}
+
+/* Main accent buttons */
+button {
+	color: inherit;
 }

@@ -50,14 +50,13 @@ export default function LeaderboardPage() {
         
         {error && (
           <div className="text-center py-20 text-red-400">
-            Error: {error}<br />
-            Make sure the table "leaderboard" exists in Supabase.
+            Error: {error}
           </div>
         )}
 
         {!loading && !error && leaderboard.length === 0 && (
           <p className="text-center py-20 text-white/60">
-            No results yet. Be the first!
+            No results yet. Be the first on the leaderboard!
           </p>
         )}
 
