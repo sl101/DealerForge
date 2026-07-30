@@ -1,91 +1,179 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Trophy, Play, Award, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { LogOut, Calculator, Grid3X3, CircleDot, Hash, Trophy } from 'lucide-react';
 
 export default function Home() {
   const router = useRouter();
   const { user, signOut } = useAuth();
 
-  const goToTraining = () => router.push('/train');
-  const goToLeaderboard = () => router.push('/leaderboard');
-
-  const handleLogout = async () => {
-    await signOut();
-  };
+  const modes = [
+    {
+      title: 'Payout Trainer',
+      icon: <Calculator size={32} style={{ color: '#67e8f9' }} />,
+      path: '/train/payout',
+      gradient: 'linear-gradient(135deg, rgba(103, 232, 249, 0.18), rgba(59, 130, 246, 0.12))',
+    },
+    {
+      title: 'Standard Combinations',
+      icon: <Grid3X3 size={32} style={{ color: '#67e8f9' }} />,
+      path: '/train/combinations',
+      gradient: 'linear-gradient(135deg, rgba(165, 180, 252, 0.18), rgba(129, 140, 248, 0.12))',
+    },
+    {
+      title: 'Neighbors Drill',
+      icon: <CircleDot size={32} style={{ color: '#67e8f9' }} />,
+      path: '/train/neighbors',
+      gradient: 'linear-gradient(135deg, rgba(52, 211, 153, 0.18), rgba(16, 185, 129, 0.12))',
+    },
+    {
+      title: 'Multiplication Table',
+      icon: <Hash size={32} style={{ color: '#67e8f9' }} />,
+      path: '/train/multiplication',
+      gradient: 'linear-gradient(135deg, rgba(251, 191, 36, 0.18), rgba(245, 158, 11, 0.12))',
+    },
+  ];
 
   return (
-    <div className="min-h-screen pb-20 bg-[#1a1a2e]">
+    <div style={{ minHeight: '100vh', backgroundColor: '#1a1a2e', color: 'white' }}>
       {/* Header */}
-      <header className="glass sticky top-0 z-50 border-b border-white/10">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#67e8f9] to-[#a5b4fc] rounded-2xl flex items-center justify-center">
-              <span className="text-2xl">🎰</span>
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight text-white">DealerForge</h1>
-          </div>
-          
+      <header
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 50,
+          backgroundColor: 'rgba(26, 26, 46, 0.9)',
+          borderBottom: '1px solid rgba(255,255,255,0.1)',
+          backdropFilter: 'blur(12px)',
+        }}
+      >
+        <div
+          style={{
+            maxWidth: '512px',
+            margin: '0 auto',
+            padding: '16px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <h1 style={{ fontSize: '20px', fontWeight: 600, margin: 0, color: 'white' }}>
+            DealerForge
+          </h1>
           {user && (
-            <button 
-              onClick={handleLogout}
-              className="flex items-center gap-2 text-white/70 hover:text-white text-sm px-4 py-2 rounded-xl hover:bg-white/10 transition-colors"
+            <button
+              onClick={() => signOut()}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                color: 'rgba(255,255,255,0.6)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+              }}
             >
-              <LogOut size={18} /> Logout
+              <LogOut size={16} />
+              Logout
             </button>
           )}
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-6 pt-8">
-        <div className="mb-10">
-          <h2 className="text-4xl font-bold mb-2 text-white">
-            Welcome back, {user ? 'Dealer' : 'Guest'}!
-          </h2>
-          <p className="text-white/70 text-lg">Train your skills. Beat the table.</p>
+      <main style={{ maxWidth: '512px', margin: '0 auto', padding: '32px 20px 64px' }}>
+        <h2
+          style={{
+            fontSize: '28px',
+            fontWeight: 700,
+            textAlign: 'center',
+            marginBottom: '40px',
+            color: 'white',
+          }}
+        >
+          Training Modes
+        </h2>
+
+        {/* 2x2 Grid */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '16px',
+            marginBottom: '32px',
+          }}
+        >
+          {modes.map((mode) => (
+            <button
+              key={mode.path}
+              onClick={() => router.push(mode.path)}
+              style={{
+                aspectRatio: '1',
+                borderRadius: '24px',
+                background: mode.gradient,
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                padding: '16px',
+                position: 'relative',
+                overflow: 'hidden',
+                transition: 'all 0.2s',
+              }}
+            >
+              <div
+                style={{
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '16px',
+                  backgroundColor: 'rgba(103, 232, 249, 0.12)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '16px',
+                }}
+              >
+                {mode.icon}
+              </div>
+              <span
+                style={{
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  textAlign: 'center',
+                  lineHeight: 1.3,
+                  color: 'white',
+                }}
+              >
+                {mode.title}
+              </span>
+            </button>
+          ))}
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-12">
-          <div className="glass p-6 text-center rounded-3xl">
-            <div className="text-4xl font-bold text-[#67e8f9]">94%</div>
-            <div className="text-sm text-white/70 mt-1">Accuracy</div>
-          </div>
-          <div className="glass p-6 text-center rounded-3xl">
-            <div className="text-4xl font-bold text-white">245</div>
-            <div className="text-sm text-white/70 mt-1">Tasks Today</div>
-          </div>
-          <div className="glass p-6 text-center rounded-3xl">
-            <div className="text-4xl font-bold text-[#a5b4fc]">7 🔥</div>
-            <div className="text-sm text-white/70 mt-1">Day Streak</div>
-          </div>
-        </div>
-
-        {/* Training Button */}
-        <button 
-          onClick={goToTraining}
-          className="w-full glass p-10 text-center rounded-3xl hover:bg-white/5 transition-all mb-6 group"
+        {/* Leaderboard */}
+        <button
+          onClick={() => router.push('/leaderboard')}
+          style={{
+            width: '100%',
+            borderRadius: '24px',
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '12px',
+            padding: '20px',
+            cursor: 'pointer',
+            color: 'white',
+            fontWeight: 500,
+          }}
         >
-          <div className="mx-auto w-20 h-20 bg-gradient-to-br from-[#67e8f9]/30 to-transparent rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-            <Play className="w-12 h-12 text-[#67e8f9]" />
-          </div>
-          <h3 className="text-2xl font-bold text-white mb-2">Start Training</h3>
-          <p className="text-white/70">Roulette Payout Challenges</p>
+          <Trophy size={22} style={{ color: '#67e8f9' }} />
+          Global Leaderboard
         </button>
-
-        {/* Leaderboard Button */}
-        <button 
-          onClick={goToLeaderboard}
-          className="w-full glass p-10 text-center rounded-3xl hover:bg-white/5 transition-all group"
-        >
-          <div className="mx-auto w-20 h-20 bg-gradient-to-br from-[#a5b4fc]/30 to-transparent rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-            <Trophy className="w-12 h-12 text-[#a5b4fc]" />
-          </div>
-          <h3 className="text-2xl font-bold text--foreground mb-2">Global Leaderboard</h3>
-          <p className="text-white/70">See top dealers worldwide</p>
-        </button>
-      </div>
+      </main>
     </div>
   );
 }

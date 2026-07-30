@@ -4,38 +4,45 @@
 
 :root {
 	--background: #1a1a2e;
-	--foreground: #e0f2fe;
+	--surface: #16213e;
 	--primary: #67e8f9;
-	--accent: #a5b4fc;
-	--card: #16213e;
-	--border: #334155;
+	--primary-hover: #22d3ee;
+	--text: #e0f2fe;
+	--text-muted: rgba(224, 242, 254, 0.7);
+	--border: rgba(255, 255, 255, 0.1);
+	--success: #10b981;
+	--error: #ef4444;
 }
 
 body {
 	background-color: var(--background);
-	color: var(--foreground);
-	font-family: 'Inter', system-ui, sans-serif;
+	color: var(--text);
+	font-family: system-ui, -apple-system, sans-serif;
 }
 
-/* Glass effect for cards */
 .glass {
-	background: rgba(22, 33, 62, 0.92);
+	background: rgba(22, 33, 62, 0.85);
 	backdrop-filter: blur(16px);
 	border: 1px solid var(--border);
 }
 
-/* Ensure readable text */
-h1,
-h2,
-h3,
-p,
-span,
-div,
-label {
-	color: var(--foreground);
+/* Utility classes */
+.text-primary {
+	color: var(--primary);
 }
 
-/* Main accent buttons */
-button {
-	color: inherit;
+.text-muted {
+	color: var(--text-muted);
+}
+
+.bg-primary {
+	background-color: var(--primary);
+}
+
+.bg-primary-hover:hover {
+	background-color: var(--primary-hover);
+}
+
+.border-primary {
+	border-color: var(--primary);
 }
