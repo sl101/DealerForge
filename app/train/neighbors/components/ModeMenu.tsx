@@ -4,29 +4,39 @@ import { ArrowLeft } from 'lucide-react';
 
 interface ModeMenuProps {
   onBack: () => void;
+  onStartStudy: () => void;
   onStartCards: () => void;
   onStartTimed: () => void;
 }
 
-export default function ModeMenu({ onBack, onStartCards, onStartTimed }: ModeMenuProps) {
+export default function ModeMenu({
+  onBack,
+  onStartStudy,
+  onStartCards,
+  onStartTimed,
+}: ModeMenuProps) {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', color: 'var(--text)' }}>
-      <header style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-        backgroundColor: 'rgba(26,26,46,0.9)',
-        borderBottom: '1px solid var(--border)',
-        backdropFilter: 'blur(12px)',
-      }}>
-        <div style={{
-          maxWidth: 512,
-          margin: '0 auto',
-          padding: '16px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-        }}>
+      <header
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 50,
+          backgroundColor: 'rgba(26,26,46,0.9)',
+          borderBottom: '1px solid var(--border)',
+          backdropFilter: 'blur(12px)',
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 512,
+            margin: '0 auto',
+            padding: '16px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
           <button
             onClick={onBack}
             style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}
@@ -46,6 +56,13 @@ export default function ModeMenu({ onBack, onStartCards, onStartTimed }: ModeMen
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <button onClick={onStartStudy} className="mode-card">
+            <div style={{ fontSize: 22, fontWeight: 600 }}>Study Wheel</div>
+            <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 4 }}>
+              Explore neighbors visually
+            </div>
+          </button>
+
           <button onClick={onStartCards} className="mode-card">
             <div style={{ fontSize: 22, fontWeight: 600 }}>Cards</div>
             <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 4 }}>

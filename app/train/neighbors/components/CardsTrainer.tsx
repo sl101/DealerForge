@@ -20,60 +20,177 @@ interface CardsTrainerProps {
 export default function CardsTrainer({ onBack }: CardsTrainerProps) {
   const [depth, setDepth] = useState<Depth>('1/1');
   const [direction, setDirection] = useState<Direction>('number-first');
-  const [cards, setCards] = useState<NeighborCard[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const [newQueue, setNewQueue] = useState<NeighborCard[]>([]);
+  const [reviewQueue, setReviewQueue] = useState<NeighborCard[]>([]);
+  const [seenCount, setSeenCount] = useState(0);
+  const [seenIds, setSeenIds] = useState<Set<number>>(new Set());
+
+  const [current, setCurrent] = useState<NeighborCard | null>(null);
+  const [currentFromReview, setCurrentFromReview] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const [stats, setStats] = useState<Record<number, NumberStats>>({});
-  const [history, setHistory] = useState<number[]>([]);
+  const [history, setHistory] = useState<{ card: NeighborCard; fromReview: boolean }[]>([]);
 
   const touchStartX = useRef<number | null>(null);
+  const TOTAL = NEIGHBOR_CARDS.length;
 
   useEffect(() => {
     setStats(loadStats());
     const shuffled = [...NEIGHBOR_CARDS].sort(() => Math.random() - 0.5);
-    setCards(shuffled);
+    const first = shuffled[0];
+    setCurrent(first);
+    setCurrentFromReview(false);
+    setNewQueue(shuffled.slice(1));
+    setSeenIds(new Set([first.number]));
+    setSeenCount(1);
   }, []);
 
-  const currentCard = cards[currentIndex];
+  /**
+   * Pick next card WITHOUT removing current from review yet.
+   * Review items are only removed on Know.
+   */
+  const pickNext = (
+    newQ: NeighborCard[],
+    reviewQ: NeighborCard[],
+    seen: Set<number>
+  ): {
+    card: NeighborCard | null;
+    fromReview: boolean;
+    newQ: NeighborCard[];
+    seen: Set<number>;
+  } => {
+    const allSeen = seen.size >= TOTAL;
 
-  const goNext = () => {
-    setIsFlipped(false);
-    if (currentIndex < cards.length - 1) {
-      setHistory(prev => [...prev, currentIndex]);
-      setCurrentIndex(prev => prev + 1);
-    } else {
-      const shuffled = [...NEIGHBOR_CARDS].sort(() => Math.random() - 0.5);
-      setCards(shuffled);
-      setCurrentIndex(0);
-      setHistory([]);
+    // Still introducing new numbers — prefer new (~70%)
+    if (!allSeen && newQ.length > 0) {
+      const preferNew = reviewQ.length === 0 || Math.random() < 0.7;
+      if (preferNew) {
+        const card = newQ[0];
+        const nextSeen = new Set(seen);
+        nextSeen.add(card.number);
+        return {
+          card,
+          fromReview: false,
+          newQ: newQ.slice(1),
+          seen: nextSeen,
+        };
+      }
+      // Show a review card but KEEP it in reviewQueue until Know
+      return {
+        card: reviewQ[0],
+        fromReview: true,
+        newQ,
+        seen,
+      };
     }
+
+    // All unique numbers seen — cycle review (still keep until Know)
+    if (reviewQ.length > 0) {
+      return {
+        card: reviewQ[0],
+        fromReview: true,
+        newQ,
+        seen,
+      };
+    }
+
+    // Reshuffle full deck
+    const shuffled = [...NEIGHBOR_CARDS].sort(() => Math.random() - 0.5);
+    const card = shuffled[0];
+    return {
+      card,
+      fromReview: false,
+      newQ: shuffled.slice(1),
+      seen: new Set([card.number]),
+    };
   };
 
-  const goPrev = () => {
-    if (history.length === 0) return;
+  const advance = (action: 'know' | 'repeat' | 'skip') => {
+    if (!current) return;
     setIsFlipped(false);
-    const prevIndex = history[history.length - 1];
-    setHistory(prev => prev.slice(0, -1));
-    setCurrentIndex(prevIndex);
+
+    let nextReview = [...reviewQueue];
+    let nextNew = [...newQueue];
+    let nextSeen = new Set(seenIds);
+
+    // Save history
+    setHistory((prev) => [...prev, { card: current, fromReview: currentFromReview }]);
+
+    if (action === 'know') {
+      // Remove from review if it was there (by number, no duplicates left)
+      nextReview = nextReview.filter((c) => c.number !== current.number);
+    }
+
+    if (action === 'repeat') {
+      // Add to review only if not already present
+      const already = nextReview.some((c) => c.number === current.number);
+      if (!already) {
+        nextReview = [...nextReview, current];
+      }
+      // If it was already the head of review and we show it again later — OK, still one entry
+    }
+
+    // If current was from review and we only skipped — leave review as is
+    // If current was from new queue, it's already removed from newQ when picked
+
+    // When showing a review card we did NOT dequeue it — so if action is skip/repeat
+    // and it was fromReview, move it to the end so the same card isn't stuck at front forever
+    if (currentFromReview && action !== 'know') {
+      nextReview = nextReview.filter((c) => c.number !== current.number);
+      if (action === 'repeat' || action === 'skip') {
+        // keep one copy at the end for later
+        if (!nextReview.some((c) => c.number === current.number)) {
+          nextReview = [...nextReview, current];
+        }
+      }
+    }
+
+    const result = pickNext(nextNew, nextReview, nextSeen);
+
+    setReviewQueue(nextReview);
+    setNewQueue(result.newQ);
+    setSeenIds(result.seen);
+    setSeenCount(result.seen.size);
+    setCurrent(result.card);
+    setCurrentFromReview(result.fromReview);
   };
 
   const handleKnow = () => {
-    if (!currentCard) return;
-    updateStat(stats, currentCard.number, true);
+    if (!current) return;
+    updateStat(stats, current.number, true);
     setStats({ ...stats });
-    goNext();
+    advance('know');
   };
 
   const handleRepeat = () => {
-    if (!currentCard) return;
-    updateStat(stats, currentCard.number, false);
+    if (!current) return;
+    updateStat(stats, current.number, false);
     setStats({ ...stats });
+    advance('repeat');
+  };
 
-    const newCards = [...cards];
-    const insertAt = Math.min(currentIndex + 3, newCards.length);
-    newCards.splice(insertAt, 0, currentCard);
-    setCards(newCards);
-    goNext();
+  const goNext = () => advance('skip');
+
+  const goPrev = () => {
+    if (history.length === 0 || !current) return;
+    setIsFlipped(false);
+
+    const prev = history[history.length - 1];
+    setHistory((h) => h.slice(0, -1));
+
+    // Put current aside: if from review, ensure it's in review queue once
+    if (currentFromReview) {
+      setReviewQueue((q) => {
+        if (q.some((c) => c.number === current.number)) return q;
+        return [current, ...q];
+      });
+    } else {
+      setNewQueue((q) => [current, ...q]);
+    }
+
+    setCurrent(prev.card);
+    setCurrentFromReview(prev.fromReview);
   };
 
   const onTouchStart = (e: React.TouchEvent) => {
@@ -90,36 +207,48 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
     touchStartX.current = null;
   };
 
-  if (!currentCard) return null;
+  if (!current) return null;
+
+  const progressLabel = `${seenCount} / ${TOTAL}`;
+  const reviewLabel =
+    reviewQueue.length > 0 ? ` · ${reviewQueue.length} to review` : '';
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', color: 'var(--text)' }}>
-      <header style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-        backgroundColor: 'rgba(26,26,46,0.92)',
-        borderBottom: '1px solid var(--border)',
-        backdropFilter: 'blur(12px)',
-      }}>
-        <div style={{
-          maxWidth: 512,
-          margin: '0 auto',
-          padding: '10px 14px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-        }}>
+      <header
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 50,
+          backgroundColor: 'rgba(26,26,46,0.9)',
+          borderBottom: '1px solid var(--border)',
+          backdropFilter: 'blur(12px)',
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 512,
+            margin: '0 auto',
+            padding: '12px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+          }}
+        >
           <button
             onClick={onBack}
-            style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', flexShrink: 0 }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--primary)',
+              cursor: 'pointer',
+              flexShrink: 0,
+            }}
           >
             <ArrowLeft size={20} />
           </button>
 
-          {/* Both controls on one line */}
           <div style={{ display: 'flex', gap: 8, flex: 1, minWidth: 0 }}>
-            {/* Depth */}
             <div className="segmented" style={{ flex: '0 0 auto' }}>
               <button
                 className={depth === '1/1' ? 'active' : ''}
@@ -137,7 +266,6 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
               </button>
             </div>
 
-            {/* Direction */}
             <div className="segmented" style={{ flex: 1 }}>
               <button
                 className={direction === 'number-first' ? 'active' : ''}
@@ -165,12 +293,20 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
       </header>
 
       <main style={{ maxWidth: 512, margin: '0 auto', padding: '20px 16px 40px' }}>
-        <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, marginBottom: 16 }}>
-          {currentIndex + 1} / {cards.length}
+        <div
+          style={{
+            textAlign: 'center',
+            color: 'var(--text-muted)',
+            fontSize: 13,
+            marginBottom: 16,
+          }}
+        >
+          {progressLabel}
+          <span style={{ opacity: 0.7 }}>{reviewLabel}</span>
         </div>
 
         <FlashCard
-          card={currentCard}
+          card={current}
           depth={depth}
           direction={direction}
           isFlipped={isFlipped}
@@ -179,7 +315,14 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
           onTouchEnd={onTouchEnd}
         />
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: 12,
+            marginBottom: 16,
+          }}
+        >
           <button
             onClick={handleRepeat}
             className="btn-repeat"

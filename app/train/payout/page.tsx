@@ -1,33 +1,65 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Timer, Trophy } from 'lucide-react';
-import { generateRouletteTask, RouletteTask } from '@/lib/roulette';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, Trophy, Timer } from 'lucide-react';
+import { generateRouletteTask, RouletteTask, TaskOptions } from '@/lib/roulette';
+import NumericKeypad from '@/components/ui/NumericKeypad';
 import AuthModal from '@/components/AuthModal';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
+
+type Level = 1 | 2 | 3;
+
+const LEVEL_CONFIG: Record<
+  Level,
+  {
+    title: string;
+    subtitle: string;
+    timeSec: number;
+    options: TaskOptions;
+  }
+> = {
+  1: {
+    title: 'Easy',
+    subtitle: '3–5 bets · chips 1–4',
+    timeSec: 60,
+    options: { minBets: 3, maxBets: 5, minChips: 1, maxChips: 4 },
+  },
+  2: {
+    title: 'Medium',
+    subtitle: '5–8 bets · chips 1–10',
+    timeSec: 75,
+    options: { minBets: 5, maxBets: 8, minChips: 1, maxChips: 10 },
+  },
+  3: {
+    title: 'Hard',
+    subtitle: '7–12 bets · chips 1–15 (up to 25)',
+    timeSec: 90,
+    options: {
+      minBets: 7,
+      maxBets: 12,
+      minChips: 1,
+      maxChips: 15,
+      rareMaxChips: 25,
+      rareChance: 0.12,
+    },
+  },
+};
 
 export default function PayoutTrainerPage() {
-  const [currentTask, setCurrentTask] = useState<RouletteTask | null>(null);
+  const router = useRouter();
+
+  const [screen, setScreen] = useState<'menu' | 'play'>('menu');
+  const [level, setLevel] = useState<Level>(1);
+  const [task, setTask] = useState<RouletteTask | null>(null);
   const [userAnswer, setUserAnswer] = useState('');
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
-  const [timeLeft, setTimeLeft] = useState(60);
+  const [timeLeft, setTimeLeft] = useState(0);
   const [score, setScore] = useState(0);
-  const [totalAttempts, setTotalAttempts] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  const [attempts, setAttempts] = useState(0);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
-  const answerInputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  const { user } = useAuth();
-
-  const startTimer = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setTimeLeft(prev => (prev <= 1 ? 0 : prev - 1));
-    }, 1000);
-  };
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const stopTimer = () => {
     if (timerRef.current) {
@@ -36,181 +68,377 @@ export default function PayoutTrainerPage() {
     }
   };
 
-  const generateNewTask = async () => {
-    setIsLoading(true);
-    setUserAnswer('');
-    setIsCorrect(null);
-    setTimeLeft(60);
-
-    const task = generateRouletteTask();
-    setCurrentTask(task);
-
-    setIsLoading(false);
-
-    setTimeout(() => {
-      answerInputRef.current?.focus();
-      answerInputRef.current?.select();
-      startTimer();
-    }, 400);
-  };
-
-  const handleSubmit = async () => {
-    if (!currentTask || !userAnswer) return;
+  const startTimer = (seconds: number) => {
     stopTimer();
-
-    setTotalAttempts(prev => prev + 1);
-    const isAnswerCorrect = parseInt(userAnswer) === currentTask.correctAnswer;
-    setIsCorrect(isAnswerCorrect);
-
-    if (isAnswerCorrect) {
-      const points = Math.max(40, Math.floor(timeLeft * 6));
-      setScore(prev => prev + points);
-    }
-
-    setUserAnswer('');
-
-    if (isAnswerCorrect && user) {
-      const newScore = score + (isAnswerCorrect ? Math.max(40, Math.floor(timeLeft * 6)) : 0);
-      await supabase.from('leaderboard').upsert({
-        user_id: user.id,
-        score: newScore,
-        tasks_solved: totalAttempts + 1,
-        accuracy: Math.round((newScore / ((totalAttempts + 1) * 50)) * 100) || 0,
+    setTimeLeft(seconds);
+    timerRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          stopTimer();
+          return 0;
+        }
+        return prev - 1;
       });
-    }
-
-    if (isAnswerCorrect && !user && totalAttempts + 1 >= 2) {
-      setTimeout(() => setShowAuthModal(true), 800);
-    }
+    }, 1000);
   };
 
-  const nextTask = () => {
-    stopTimer();
-    setIsCorrect(null);
+  const createTask = (lv: Level) => {
+    const cfg = LEVEL_CONFIG[lv];
+    const newTask = generateRouletteTask(cfg.options);
+    setTask(newTask);
     setUserAnswer('');
-    generateNewTask();
+    setIsCorrect(null);
+    startTimer(cfg.timeSec);
+    setTimeout(() => inputRef.current?.focus(), 200);
+  };
+
+  const startLevel = (lv: Level) => {
+    setLevel(lv);
+    setScore(0);
+    setAttempts(0);
+    setScreen('play');
+    createTask(lv);
+  };
+
+  const backToMenu = () => {
+    stopTimer();
+    setTask(null);
+    setScreen('menu');
   };
 
   useEffect(() => {
     return () => stopTimer();
   }, []);
 
-  return (
-    <div className="min-h-screen bg-[#1a1a2e] text-[#e0f2fe]">
-      <header className="glass sticky top-0 z-50 border-b border-white/10">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button
-            onClick={() => window.history.back()}
-            className="flex items-center gap-2 text-[#67e8f9] hover:text-white"
+  const handleSubmit = () => {
+    if (!task || !userAnswer.trim() || isCorrect !== null) return;
+
+    const answer = Number(userAnswer.trim());
+    const ok = answer === task.correctAnswer;
+    setIsCorrect(ok);
+    stopTimer();
+    setAttempts((a) => a + 1);
+
+    if (ok) {
+      const bonus = Math.max(5, timeLeft);
+      setScore((s) => s + bonus * level);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(30);
+      }
+    } else if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate([40, 30, 40]);
+    }
+  };
+
+  const nextTask = () => {
+    createTask(level);
+  };
+
+  // ===================== MENU =====================
+  if (screen === 'menu') {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', color: 'var(--text)' }}>
+        <header
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 50,
+            backgroundColor: 'rgba(26,26,46,0.9)',
+            borderBottom: '1px solid var(--border)',
+            backdropFilter: 'blur(12px)',
+          }}
+        >
+          <div
+            style={{
+              maxWidth: 512,
+              margin: '0 auto',
+              padding: '16px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+            }}
           >
-            <ArrowLeft size={20} /> Dashboard
+            <button
+              onClick={() => router.push('/')}
+              style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}
+            >
+              <ArrowLeft size={22} />
+            </button>
+            <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Payout Trainer</h1>
+          </div>
+        </header>
+
+        <main style={{ maxWidth: 512, margin: '0 auto', padding: '40px 20px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 36 }}>
+            <Trophy size={40} style={{ color: 'var(--primary)', marginBottom: 12 }} />
+            <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>Payout Trainer</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: 15 }}>
+              Calculate chips for covered winning numbers
+            </p>
+          </div>
+
+          <p
+            style={{
+              textAlign: 'center',
+              fontSize: 13,
+              color: 'var(--text-muted)',
+              marginBottom: 16,
+              textTransform: 'uppercase',
+              letterSpacing: 1,
+            }}
+          >
+            Choose level
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {(Object.keys(LEVEL_CONFIG) as unknown as Level[]).map((id) => {
+              const lv = LEVEL_CONFIG[id];
+              return (
+                <button
+                  key={id}
+                  onClick={() => startLevel(id)}
+                  className="mode-card"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontSize: 20, fontWeight: 700 }}>
+                      Level {id} · {lv.title}
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
+                      {lv.subtitle}
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 12,
+                      background: 'rgba(103,232,249,0.15)',
+                      color: 'var(--primary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 800,
+                      fontSize: 16,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {id}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // ===================== PLAY =====================
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        backgroundColor: 'var(--bg)',
+        color: 'var(--text)',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <header
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 50,
+          backgroundColor: 'rgba(26,26,46,0.9)',
+          borderBottom: '1px solid var(--border)',
+          backdropFilter: 'blur(12px)',
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 512,
+            margin: '0 auto',
+            padding: '12px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+          }}
+        >
+          <button
+            onClick={backToMenu}
+            style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}
+          >
+            <ArrowLeft size={20} />
           </button>
-          <div className="flex items-center gap-6 text-sm font-medium">
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 14,
+              fontWeight: 600,
+            }}
+          >
+            <Timer size={16} style={{ color: 'var(--primary)' }} />
+            <span style={{ color: 'var(--primary)' }}>{timeLeft}s</span>
+          </div>
+
+          <div style={{ fontSize: 13, fontWeight: 600, textAlign: 'right' }}>
             <div>
-              Score: <span className="text-[#67e8f9]">{score}</span>
+              Score: <span style={{ color: 'var(--primary)' }}>{score}</span>
             </div>
-            <div>Attempts: {totalAttempts}</div>
-            {user ? (
-              <div className="text-emerald-400 text-xs">✓ Logged in</div>
-            ) : (
-              <div className="text-white/50 text-xs">Guest Mode</div>
-            )}
+            <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+              L{level} · {attempts} attempts
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-6 py-10">
-        {!currentTask ? (
-          <div className="text-center py-24">
-            <Trophy className="mx-auto w-24 h-24 text-[#67e8f9] mb-8" />
-            <h1 className="text-5xl font-bold mb-6">Payout Trainer</h1>
-            <p className="text-xl text-white/70 mb-12">
-              Calculate chips for covered winning numbers
-            </p>
-            <button
-              onClick={generateNewTask}
-              disabled={isLoading}
-              className="bg-[#67e8f9] hover:bg-[#22d3ee] text-black font-semibold text-2xl px-16 py-7 rounded-3xl transition-all active:scale-95"
+      <main
+        style={{
+          flex: 1,
+          maxWidth: 512,
+          margin: '0 auto',
+          width: '100%',
+          padding: '20px 16px',
+          paddingBottom: 'calc(22vh + 20px)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}
+      >
+        {task && (
+          <>
+            <div
+              style={{
+                width: '100%',
+                background: 'var(--card-front)',
+                borderRadius: 'var(--radius-card)',
+                padding: '24px 20px',
+                marginBottom: 20,
+                boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+                color: '#0f172a',
+              }}
             >
-              {isLoading ? 'Generating...' : 'New Challenge'}
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-10">
-            <div className="flex justify-center">
-              <div className="glass px-12 py-5 rounded-3xl flex items-center gap-4 text-4xl font-mono tracking-widest shadow-xl">
-                <Timer className="text-[#67e8f9]" /> {timeLeft}
+              <div
+                style={{
+                  fontSize: 15,
+                  fontWeight: 700,
+                  marginBottom: 14,
+                  textAlign: 'center',
+                }}
+              >
+                Winning number:{' '}
+                <span style={{ color: '#dc2626' }}>{task.winningNumber}</span>
+              </div>
+
+              <div style={{ fontSize: 14, lineHeight: 1.7, textAlign: 'center' }}>
+                {task.bets?.map((b, i) => (
+                  <div key={i}>
+                    {b.count} × {b.type} on {b.positions}
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div className="glass p-8 rounded-3xl">
-              <p className="text-2xl leading-relaxed whitespace-pre-line mb-8 font-medium">
-                {currentTask.description}
-              </p>
-
-              <input
-                ref={answerInputRef}
-                type="number"
-                inputMode="decimal"
-                value={userAnswer}
-                onChange={(e) => setUserAnswer(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && userAnswer.trim()) handleSubmit();
-                }}
-                placeholder="Total payout chips"
-                className="w-full bg-zinc-900 border-2 border-[#67e8f9]/50 focus:border-[#67e8f9] rounded-3xl px-8 py-8 text-5xl text-center font-mono focus:outline-none shadow-inner"
-              />
-            </div>
-
-            <div className="flex gap-4">
-              <button
-                onClick={handleSubmit}
-                disabled={!userAnswer}
-                className="flex-1 bg-[#67e8f9] hover:bg-[#22d3ee] disabled:bg-zinc-700 text-black font-semibold py-7 rounded-3xl text-2xl transition-all"
-              >
-                Submit Answer
-              </button>
-              <button
-                onClick={nextTask}
-                className="flex-1 border border-white/30 hover:bg-white/5 py-7 rounded-3xl text-2xl text-white"
-              >
-                Skip
-              </button>
-            </div>
+            <input
+              ref={inputRef}
+              type="text"
+              readOnly
+              inputMode="none"
+              value={userAnswer}
+              placeholder="Total payout chips"
+              style={{
+                width: '100%',
+                maxWidth: 280,
+                padding: '12px 16px',
+                fontSize: 20,
+                fontWeight: 700,
+                textAlign: 'center',
+                borderRadius: 14,
+                border:
+                  isCorrect === true
+                    ? '2px solid var(--success)'
+                    : isCorrect === false
+                    ? '2px solid var(--error)'
+                    : '2px solid var(--border)',
+                background: 'rgba(255,255,255,0.06)',
+                color: 'white',
+                outline: 'none',
+                marginBottom: 12,
+              }}
+            />
 
             {isCorrect !== null && (
               <div
-                className={`p-10 rounded-3xl text-center border-2 ${
-                  isCorrect
-                    ? 'border-green-500 bg-green-950/30'
-                    : 'border-red-500 bg-red-950/30'
-                }`}
+                style={{
+                  width: '100%',
+                  maxWidth: 280,
+                  padding: 14,
+                  borderRadius: 14,
+                  textAlign: 'center',
+                  marginBottom: 8,
+                  background: isCorrect ? 'var(--success-bg)' : 'var(--error-bg)',
+                  color: isCorrect ? 'var(--success)' : 'var(--error)',
+                  fontWeight: 700,
+                  fontSize: 16,
+                }}
               >
-                <p className="text-5xl mb-4">
-                  {isCorrect ? '🎉 Perfect!' : '😔 Wrong'}
-                </p>
-                <p className="text-3xl">
-                  Correct:{' '}
-                  <span className="font-mono font-bold">
-                    {currentTask.correctAnswer}
-                  </span>
-                </p>
+                {isCorrect ? 'Correct!' : `Wrong · ${task.correctAnswer}`}
                 <button
                   onClick={nextTask}
-                  className="mt-10 bg-white/10 hover:bg-white/20 px-14 py-5 rounded-2xl text-xl text-white border border-white/30"
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    marginTop: 12,
+                    padding: 12,
+                    borderRadius: 12,
+                    border: 'none',
+                    background: 'var(--primary)',
+                    color: '#000',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
                 >
-                  Next Task →
+                  Next task →
                 </button>
               </div>
             )}
-          </div>
+          </>
         )}
+      </main>
+
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 40,
+        }}
+      >
+        <div style={{ maxWidth: 512, margin: '0 auto' }}>
+          <NumericKeypad
+            disabled={isCorrect !== null}
+            onDigit={(d) => setUserAnswer((prev) => prev + d)}
+            onBackspace={() => setUserAnswer((prev) => prev.slice(0, -1))}
+            onSpace={() => {}}
+            onEnter={handleSubmit}
+          />
+        </div>
       </div>
 
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
-        message="Great work! If you want to save your progress and compete on the global leaderboard, please sign in or create an account."
+        message="Sign in to save your payout training results."
       />
     </div>
   );

@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import ModeMenu from './components/ModeMenu';
 import CardsTrainer from './components/CardsTrainer';
 import TimedTrainer from './components/TimedTrainer';
+import StudyMode from './components/StudyMode';
 
-type Mode = 'menu' | 'cards' | 'timed';
+type Mode = 'menu' | 'study' | 'cards' | 'timed';
 
 export default function NeighborsPage() {
   const router = useRouter();
@@ -16,10 +17,15 @@ export default function NeighborsPage() {
     return (
       <ModeMenu
         onBack={() => router.push('/')}
+        onStartStudy={() => setMode('study')}
         onStartCards={() => setMode('cards')}
         onStartTimed={() => setMode('timed')}
       />
     );
+  }
+
+  if (mode === 'study') {
+    return <StudyMode onBack={() => setMode('menu')} />;
   }
 
   if (mode === 'cards') {

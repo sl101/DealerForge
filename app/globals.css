@@ -3,31 +3,40 @@
 @tailwind utilities;
 
 :root {
-	/* Colors */
+	/* Core */
 	--bg: #1a1a2e;
 	--surface: #16213e;
 	--primary: #67e8f9;
 	--primary-hover: #22d3ee;
 	--text: #e0f2fe;
 	--text-muted: rgba(224, 242, 254, 0.65);
-	--border: rgba(255, 255, 255, 0.1);
+	--border: rgba(255, 255, 255, 0.12);
+
+	/* Feedback */
 	--success: #34d399;
 	--error: #f87171;
 	--success-bg: rgba(16, 185, 129, 0.15);
 	--error-bg: rgba(239, 68, 68, 0.15);
 
-	/* Card colors */
+	/* Cards */
 	--card-front: #e2e8f0;
 	--card-back: #f1f5f9;
 	--card-text-muted: #64748b;
 	--card-hint: #94a3b8;
 
-	/* Number colors */
-	--number-green: #22c55e;
-	--number-red: #ef4444;
+	/* Roulette number colors */
+	--number-green: #16a34a;
+	--number-red: #dc2626;
 	--number-black: #1e293b;
 
-	/* Sizes */
+	/* Wheel chips */
+	--chip-green: #16a34a;
+	--chip-red: #dc2626;
+	--chip-black: #1e293b;
+	--chip-text: #ffffff;
+	--chip-border: rgba(255, 255, 255, 0.2);
+
+	/* Radii */
 	--radius-card: 24px;
 	--radius-btn: 16px;
 	--radius-pill: 20px;
@@ -36,10 +45,12 @@
 body {
 	background-color: var(--bg);
 	color: var(--text);
-	font-family: system-ui, -apple-system, sans-serif;
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	margin: 0;
+	min-height: 100vh;
 }
 
-/* Segmented control */
+/* ---------- Segmented control ---------- */
 .segmented {
 	display: flex;
 	background: rgba(255, 255, 255, 0.08);
@@ -49,14 +60,15 @@ body {
 
 .segmented button {
 	flex: 1;
-	padding: 6px 4px;
+	padding: 6px 8px;
 	border-radius: 17px;
 	border: none;
 	cursor: pointer;
 	font-weight: 600;
+	font-size: 13px;
 	background: transparent;
-	color: rgba(255, 255, 255, 0.7);
-	transition: all 0.15s;
+	color: rgba(255, 255, 255, 0.65);
+	transition: all 0.15s ease;
 }
 
 .segmented button.active {
@@ -64,15 +76,15 @@ body {
 	color: #000;
 }
 
-/* Action buttons */
+/* ---------- Buttons ---------- */
 .btn-know {
-	background: var(--success-bg);
-	color: var(--success);
+	background: var(--success-bg) !important;
+	color: var(--success) !important;
 }
 
 .btn-repeat {
-	background: var(--error-bg);
-	color: var(--error);
+	background: var(--error-bg) !important;
+	color: var(--error) !important;
 }
 
 .btn-nav {
@@ -81,6 +93,7 @@ body {
 	color: white;
 }
 
+/* ---------- Mode cards (menu) ---------- */
 .mode-card {
 	width: 100%;
 	padding: 22px 20px;
@@ -95,4 +108,106 @@ body {
 
 .mode-card:hover {
 	background: rgba(255, 255, 255, 0.08);
+}
+
+/* ---------- Feedback glow ---------- */
+.card-glow-correct {
+	box-shadow:
+		0 0 0 2px var(--success),
+		0 10px 30px rgba(16, 185, 129, 0.25) !important;
+}
+
+.card-glow-wrong {
+	box-shadow:
+		0 0 0 2px var(--error),
+		0 10px 30px rgba(239, 68, 68, 0.25) !important;
+}
+
+/* ---------- Animations ---------- */
+@keyframes shake {
+
+	0%,
+	100% {
+		transform: translateX(0);
+	}
+
+	20% {
+		transform: translateX(-6px);
+	}
+
+	40% {
+		transform: translateX(6px);
+	}
+
+	60% {
+		transform: translateX(-4px);
+	}
+
+	80% {
+		transform: translateX(4px);
+	}
+}
+
+@keyframes pop {
+	0% {
+		transform: scale(1);
+	}
+
+	40% {
+		transform: scale(1.03);
+	}
+
+	100% {
+		transform: scale(1);
+	}
+}
+
+.shake {
+	animation: shake 0.45s ease-in-out;
+}
+
+.pop {
+	animation: pop 0.35s ease;
+}
+
+/* ---------- Roulette chips (Study Wheel) ---------- */
+.chip {
+	flex-shrink: 0;
+	width: 52px;
+	height: 52px;
+	border-radius: 14px;
+	border: 1px solid var(--chip-border);
+	color: var(--chip-text);
+	font-weight: 800;
+	font-size: 18px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	user-select: none;
+	cursor: pointer;
+	pointer-events: none;
+}
+
+.chip-green {
+	background: var(--chip-green);
+}
+
+.chip-red {
+	background: var(--chip-red);
+}
+
+.chip-black {
+	background: var(--chip-black);
+}
+
+.chip-selected {
+	border: 2px solid var(--primary);
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 45%, transparent);
+}
+
+/* ---------- Glass helper (legacy screens) ---------- */
+.glass {
+	background: rgba(22, 33, 62, 0.92);
+	backdrop-filter: blur(16px);
+	border: 1px solid var(--border);
 }
