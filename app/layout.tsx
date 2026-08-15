@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
 import GlobalAuthModal from '@/components/GlobalAuthModal';
+import AdBanner from '@/components/AdBanner';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -15,9 +16,7 @@ export const metadata: Metadata = {
     statusBarStyle: 'black-translucent',
     title: 'DealerForge',
   },
-  formatDetection: {
-    telephone: false,
-  },
+  formatDetection: { telephone: false },
   manifest: '/manifest.webmanifest',
   icons: {
     icon: [
@@ -42,7 +41,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className="dark">
       <body className={`${inter.className} app-shell`}>
         <AuthProvider>
-          {children}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: '100dvh',
+              width: '100%',
+              maxWidth: '100%',
+              overflowX: 'hidden',
+            }}
+          >
+            <AdBanner />
+            <div style={{ flex: 1, minHeight: 0, width: '100%', overflowX: 'hidden' }}>
+              {children}
+            </div>
+          </div>
           <GlobalAuthModal />
         </AuthProvider>
       </body>

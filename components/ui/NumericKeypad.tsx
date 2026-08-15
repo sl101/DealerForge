@@ -32,7 +32,7 @@ export default function NumericKeypad({
   return (
     <div
       style={{
-        width: '100%',
+        //width: '100%',
         padding: '8px 12px',
         paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
         marginBottom: 8,

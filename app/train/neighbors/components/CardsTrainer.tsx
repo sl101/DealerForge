@@ -11,7 +11,7 @@ import {
   loadStats,
   updateStat,
 } from '@/lib/neighbors';
-import FlashCard from './FlashCard';
+import FlashCard, { FlashCardHandle } from './FlashCard';
 
 interface CardsTrainerProps {
   onBack: () => void;
@@ -31,8 +31,9 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
   const [isFlipped, setIsFlipped] = useState(false);
   const [stats, setStats] = useState<Record<number, NumberStats>>({});
   const [history, setHistory] = useState<{ card: NeighborCard; fromReview: boolean }[]>([]);
+  const [cardKey, setCardKey] = useState(0);
 
-  const touchStartX = useRef<number | null>(null);
+  const cardRef = useRef<FlashCardHandle>(null);
   const TOTAL = NEIGHBOR_CARDS.length;
 
   useEffect(() => {
@@ -46,10 +47,6 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
     setSeenCount(1);
   }, []);
 
-  /**
-   * Pick next card WITHOUT removing current from review yet.
-   * Review items are only removed on Know.
-   */
   const pickNext = (
     newQ: NeighborCard[],
     reviewQ: NeighborCard[],
@@ -62,40 +59,21 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
   } => {
     const allSeen = seen.size >= TOTAL;
 
-    // Still introducing new numbers — prefer new (~70%)
     if (!allSeen && newQ.length > 0) {
       const preferNew = reviewQ.length === 0 || Math.random() < 0.7;
       if (preferNew) {
         const card = newQ[0];
         const nextSeen = new Set(seen);
         nextSeen.add(card.number);
-        return {
-          card,
-          fromReview: false,
-          newQ: newQ.slice(1),
-          seen: nextSeen,
-        };
+        return { card, fromReview: false, newQ: newQ.slice(1), seen: nextSeen };
       }
-      // Show a review card but KEEP it in reviewQueue until Know
-      return {
-        card: reviewQ[0],
-        fromReview: true,
-        newQ,
-        seen,
-      };
+      return { card: reviewQ[0], fromReview: true, newQ, seen };
     }
 
-    // All unique numbers seen — cycle review (still keep until Know)
     if (reviewQ.length > 0) {
-      return {
-        card: reviewQ[0],
-        fromReview: true,
-        newQ,
-        seen,
-      };
+      return { card: reviewQ[0], fromReview: true, newQ, seen };
     }
 
-    // Reshuffle full deck
     const shuffled = [...NEIGHBOR_CARDS].sort(() => Math.random() - 0.5);
     const card = shuffled[0];
     return {
@@ -111,38 +89,24 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
     setIsFlipped(false);
 
     let nextReview = [...reviewQueue];
-    let nextNew = [...newQueue];
-    let nextSeen = new Set(seenIds);
+    const nextNew = [...newQueue];
+    const nextSeen = new Set(seenIds);
 
-    // Save history
     setHistory((prev) => [...prev, { card: current, fromReview: currentFromReview }]);
 
     if (action === 'know') {
-      // Remove from review if it was there (by number, no duplicates left)
       nextReview = nextReview.filter((c) => c.number !== current.number);
     }
 
     if (action === 'repeat') {
-      // Add to review only if not already present
       const already = nextReview.some((c) => c.number === current.number);
-      if (!already) {
-        nextReview = [...nextReview, current];
-      }
-      // If it was already the head of review and we show it again later — OK, still one entry
+      if (!already) nextReview = [...nextReview, current];
     }
 
-    // If current was from review and we only skipped — leave review as is
-    // If current was from new queue, it's already removed from newQ when picked
-
-    // When showing a review card we did NOT dequeue it — so if action is skip/repeat
-    // and it was fromReview, move it to the end so the same card isn't stuck at front forever
     if (currentFromReview && action !== 'know') {
       nextReview = nextReview.filter((c) => c.number !== current.number);
-      if (action === 'repeat' || action === 'skip') {
-        // keep one copy at the end for later
-        if (!nextReview.some((c) => c.number === current.number)) {
-          nextReview = [...nextReview, current];
-        }
+      if (!nextReview.some((c) => c.number === current.number)) {
+        nextReview = [...nextReview, current];
       }
     }
 
@@ -154,6 +118,7 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
     setSeenCount(result.seen.size);
     setCurrent(result.card);
     setCurrentFromReview(result.fromReview);
+    setCardKey((k) => k + 1);
   };
 
   const handleKnow = () => {
@@ -170,6 +135,10 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
     advance('repeat');
   };
 
+  /** Buttons: play exit animation, then advance */
+  const onKnowClick = () => cardRef.current?.animateKnow();
+  const onRepeatClick = () => cardRef.current?.animateRepeat();
+
   const goNext = () => advance('skip');
 
   const goPrev = () => {
@@ -179,7 +148,6 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
     const prev = history[history.length - 1];
     setHistory((h) => h.slice(0, -1));
 
-    // Put current aside: if from review, ensure it's in review queue once
     if (currentFromReview) {
       setReviewQueue((q) => {
         if (q.some((c) => c.number === current.number)) return q;
@@ -191,45 +159,22 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
 
     setCurrent(prev.card);
     setCurrentFromReview(prev.fromReview);
-  };
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
-
-  const onTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current === null) return;
-    const diff = e.changedTouches[0].clientX - touchStartX.current;
-    if (Math.abs(diff) > 80) {
-      if (diff > 0) handleKnow();
-      else handleRepeat();
-    }
-    touchStartX.current = null;
+    setCardKey((k) => k + 1);
   };
 
   if (!current) return null;
 
   const progressLabel = `${seenCount} / ${TOTAL}`;
-  const reviewLabel =
-    reviewQueue.length > 0 ? ` · ${reviewQueue.length} to review` : '';
+  const reviewLabel = reviewQueue.length > 0 ? ` · ${reviewQueue.length} to review` : '';
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', color: 'var(--text)' }}>
-      <header
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 50,
-          backgroundColor: 'rgba(26,26,46,0.9)',
-          borderBottom: '1px solid var(--border)',
-          backdropFilter: 'blur(12px)',
-        }}
-      >
+    <div className="page-shell">
+      <header className="page-header">
         <div
+          className="page-inner"
           style={{
-            maxWidth: 512,
-            margin: '0 auto',
-            padding: '12px 16px',
+            paddingTop: 12,
+            paddingBottom: 12,
             display: 'flex',
             alignItems: 'center',
             gap: 10,
@@ -292,7 +237,7 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
         </div>
       </header>
 
-      <main style={{ maxWidth: 512, margin: '0 auto', padding: '20px 16px 40px' }}>
+      <main className="page-inner" style={{ flex: 1, paddingTop: 20, paddingBottom: 40 }}>
         <div
           style={{
             textAlign: 'center',
@@ -306,13 +251,15 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
         </div>
 
         <FlashCard
+          key={cardKey}
+          ref={cardRef}
           card={current}
           depth={depth}
           direction={direction}
           isFlipped={isFlipped}
           onFlip={() => setIsFlipped(!isFlipped)}
-          onTouchStart={onTouchStart}
-          onTouchEnd={onTouchEnd}
+          onSwipeKnow={handleKnow}
+          onSwipeRepeat={handleRepeat}
         />
 
         <div
@@ -324,7 +271,7 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
           }}
         >
           <button
-            onClick={handleRepeat}
+            onClick={onRepeatClick}
             className="btn-repeat"
             style={{
               padding: 15,
@@ -342,7 +289,7 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
             <X size={18} /> Repeat
           </button>
           <button
-            onClick={handleKnow}
+            onClick={onKnowClick}
             className="btn-know"
             style={{
               padding: 15,

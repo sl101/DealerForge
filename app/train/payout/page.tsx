@@ -11,28 +11,20 @@ type Level = 1 | 2 | 3;
 
 const LEVEL_CONFIG: Record<
   Level,
-  {
-    title: string;
-    subtitle: string;
-    timeSec: number;
-    options: TaskOptions;
-  }
+  { title: string; timeSec: number; options: TaskOptions }
 > = {
   1: {
     title: 'Easy',
-    subtitle: '3–5 bets · chips 1–4',
     timeSec: 60,
     options: { minBets: 3, maxBets: 5, minChips: 1, maxChips: 4 },
   },
   2: {
     title: 'Medium',
-    subtitle: '5–8 bets · chips 1–10',
     timeSec: 75,
     options: { minBets: 5, maxBets: 8, minChips: 1, maxChips: 10 },
   },
   3: {
     title: 'Hard',
-    subtitle: '7–12 bets · chips 1–15 (up to 25)',
     timeSec: 90,
     options: {
       minBets: 7,
@@ -106,9 +98,7 @@ export default function PayoutTrainerPage() {
     setScreen('menu');
   };
 
-  useEffect(() => {
-    return () => stopTimer();
-  }, []);
+  useEffect(() => () => stopTimer(), []);
 
   const handleSubmit = () => {
     if (!task || !userAnswer.trim() || isCorrect !== null) return;
@@ -122,37 +112,24 @@ export default function PayoutTrainerPage() {
     if (ok) {
       const bonus = Math.max(5, timeLeft);
       setScore((s) => s + bonus * level);
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        navigator.vibrate(30);
-      }
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30);
     } else if (typeof navigator !== 'undefined' && navigator.vibrate) {
       navigator.vibrate([40, 30, 40]);
     }
   };
 
-  const nextTask = () => {
-    createTask(level);
-  };
+  const nextTask = () => createTask(level);
 
   // ===================== MENU =====================
   if (screen === 'menu') {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', color: 'var(--text)' }}>
-        <header
-          style={{
-            position: 'sticky',
-            top: 0,
-            zIndex: 50,
-            backgroundColor: 'rgba(26,26,46,0.9)',
-            borderBottom: '1px solid var(--border)',
-            backdropFilter: 'blur(12px)',
-          }}
-        >
+      <div className="page-shell">
+        <header className="page-header">
           <div
+            className="page-inner"
             style={{
-              maxWidth: 512,
-              margin: '0 auto',
-              padding: '16px 20px',
+              paddingTop: 14,
+              paddingBottom: 14,
               display: 'flex',
               alignItems: 'center',
               gap: 12,
@@ -164,74 +141,29 @@ export default function PayoutTrainerPage() {
             >
               <ArrowLeft size={22} />
             </button>
-            <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Payout Trainer</h1>
           </div>
         </header>
 
-        <main style={{ maxWidth: 512, margin: '0 auto', padding: '40px 20px' }}>
+        <main className="page-inner" style={{ paddingTop: 32, paddingBottom: 40 }}>
           <div style={{ textAlign: 'center', marginBottom: 36 }}>
             <Trophy size={40} style={{ color: 'var(--primary)', marginBottom: 12 }} />
-            <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>Payout Trainer</h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: 15 }}>
+            <h1 style={{ fontSize: 28, fontWeight: 700, margin: '0 0 8px' }}>Payout Trainer</h1>
+            <p style={{ color: 'var(--text-muted)', fontSize: 15, margin: 0 }}>
               Calculate chips for covered winning numbers
             </p>
           </div>
 
-          <p
-            style={{
-              textAlign: 'center',
-              fontSize: 13,
-              color: 'var(--text-muted)',
-              marginBottom: 16,
-              textTransform: 'uppercase',
-              letterSpacing: 1,
-            }}
-          >
-            Choose level
-          </p>
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {(Object.keys(LEVEL_CONFIG) as unknown as Level[]).map((id) => {
-              const lv = LEVEL_CONFIG[id];
-              return (
-                <button
-                  key={id}
-                  onClick={() => startLevel(id)}
-                  className="mode-card"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontSize: 20, fontWeight: 700 }}>
-                      Level {id} · {lv.title}
-                    </div>
-                    <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
-                      {lv.subtitle}
-                    </div>
-                  </div>
-                  <div
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 12,
-                      background: 'rgba(103,232,249,0.15)',
-                      color: 'var(--primary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 800,
-                      fontSize: 16,
-                      flexShrink: 0,
-                    }}
-                  >
-                    {id}
-                  </div>
-                </button>
-              );
-            })}
+            {(Object.keys(LEVEL_CONFIG) as unknown as Level[]).map((id) => (
+              <button
+                key={id}
+                onClick={() => startLevel(id)}
+                className="mode-card"
+                style={{ textAlign: 'center', fontSize: 20, fontWeight: 700, padding: 20 }}
+              >
+                {LEVEL_CONFIG[id].title}
+              </button>
+            ))}
           </div>
         </main>
       </div>
@@ -240,30 +172,13 @@ export default function PayoutTrainerPage() {
 
   // ===================== PLAY =====================
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        backgroundColor: 'var(--bg)',
-        color: 'var(--text)',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <header
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 50,
-          backgroundColor: 'rgba(26,26,46,0.9)',
-          borderBottom: '1px solid var(--border)',
-          backdropFilter: 'blur(12px)',
-        }}
-      >
+    <div className="page-shell">
+      <header className="page-header">
         <div
+          className="page-inner"
           style={{
-            maxWidth: 512,
-            margin: '0 auto',
-            padding: '12px 16px',
+            paddingTop: 12,
+            paddingBottom: 12,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -295,20 +210,18 @@ export default function PayoutTrainerPage() {
               Score: <span style={{ color: 'var(--primary)' }}>{score}</span>
             </div>
             <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>
-              L{level} · {attempts} attempts
+              {LEVEL_CONFIG[level].title} · {attempts}
             </div>
           </div>
         </div>
       </header>
 
       <main
+        className="page-inner"
         style={{
           flex: 1,
-          maxWidth: 512,
-          margin: '0 auto',
-          width: '100%',
-          padding: '20px 16px',
-          paddingBottom: 'calc(22vh + 20px)',
+          paddingTop: 20,
+          paddingBottom: 'calc(22vh + 24px)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -319,9 +232,10 @@ export default function PayoutTrainerPage() {
             <div
               style={{
                 width: '100%',
+                boxSizing: 'border-box',
                 background: 'var(--card-front)',
                 borderRadius: 'var(--radius-card)',
-                padding: '24px 20px',
+                padding: '24px 18px',
                 marginBottom: 20,
                 boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
                 color: '#0f172a',
@@ -336,7 +250,7 @@ export default function PayoutTrainerPage() {
                 }}
               >
                 Winning number:{' '}
-                <span style={{ color: '#dc2626' }}>{task.winningNumber}</span>
+                <span style={{ color: 'var(--number-red, #dc2626)' }}>{task.winningNumber}</span>
               </div>
 
               <div style={{ fontSize: 14, lineHeight: 1.7, textAlign: 'center' }}>
@@ -358,6 +272,7 @@ export default function PayoutTrainerPage() {
               style={{
                 width: '100%',
                 maxWidth: 280,
+                boxSizing: 'border-box',
                 padding: '12px 16px',
                 fontSize: 20,
                 fontWeight: 700,
@@ -381,10 +296,10 @@ export default function PayoutTrainerPage() {
                 style={{
                   width: '100%',
                   maxWidth: 280,
+                  boxSizing: 'border-box',
                   padding: 14,
                   borderRadius: 14,
                   textAlign: 'center',
-                  marginBottom: 8,
                   background: isCorrect ? 'var(--success-bg)' : 'var(--error-bg)',
                   color: isCorrect ? 'var(--success)' : 'var(--error)',
                   fontWeight: 700,
@@ -415,16 +330,8 @@ export default function PayoutTrainerPage() {
         )}
       </main>
 
-      <div
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 40,
-        }}
-      >
-        <div style={{ maxWidth: 512, margin: '0 auto' }}>
+      <div className="keypad-dock">
+        <div className="keypad-dock-inner">
           <NumericKeypad
             disabled={isCorrect !== null}
             onDigit={(d) => setUserAnswer((prev) => prev + d)}

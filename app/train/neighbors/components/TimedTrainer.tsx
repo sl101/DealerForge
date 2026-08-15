@@ -98,18 +98,16 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
 
   const currentCard = cards[currentIndex];
 
-  const getCorrectNeighbors = (card: NeighborCard) => {
-    return depth === '1/1' ? card.neighbors1 : card.neighbors2;
-  };
+  const getCorrectNeighbors = (card: NeighborCard) =>
+    depth === '1/1' ? card.neighbors1 : card.neighbors2;
 
-  const normalizeAnswer = (str: string) => {
-    return str
+  const normalizeAnswer = (str: string) =>
+    str
       .split(/[\s,.-]+/)
       .map((s) => s.trim())
       .filter(Boolean)
       .map(Number)
       .filter((n) => !isNaN(n));
-  };
 
   const vibrate = (pattern: number | number[]) => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
@@ -134,8 +132,7 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
       setFeedback('correct');
       setIsPaused(true);
 
-      const hintPenalty =
-        revealed.length === 0 ? 1 : revealed.length === 1 ? 0.5 : 0.25;
+      const hintPenalty = revealed.length === 0 ? 1 : revealed.length === 1 ? 0.5 : 0.25;
       const points = Math.max(8, Math.floor(timeLeft * 1.5 * hintPenalty));
       setScore((prev) => prev + points);
 
@@ -158,8 +155,7 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
         if (currentIndex < cards.length - 1) {
           setCurrentIndex((prev) => prev + 1);
         } else {
-          const shuffled = [...NEIGHBOR_CARDS].sort(() => Math.random() - 0.5);
-          setCards(shuffled);
+          setCards([...NEIGHBOR_CARDS].sort(() => Math.random() - 0.5));
           setCurrentIndex(0);
         }
         setTimeout(() => inputRef.current?.focus(), 100);
@@ -198,31 +194,20 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
     setRevealed(newRevealed);
     setHintsLeft((prev) => prev - 1);
 
-    const currentNums = normalizeAnswer(userInput);
-    const merged = Array.from(new Set([...currentNums, ...newRevealed]));
+    const merged = Array.from(new Set([...normalizeAnswer(userInput), ...newRevealed]));
     setUserInput(merged.join(' '));
-    inputRef.current?.focus();
   };
 
-  // START
+  // ===================== START =====================
   if (!isRunning && cards.length === 0) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', color: 'var(--text)' }}>
-        <header
-          style={{
-            position: 'sticky',
-            top: 0,
-            zIndex: 50,
-            backgroundColor: 'rgba(26,26,46,0.9)',
-            borderBottom: '1px solid var(--border)',
-            backdropFilter: 'blur(12px)',
-          }}
-        >
+      <div className="page-shell">
+        <header className="page-header">
           <div
+            className="page-inner"
             style={{
-              maxWidth: 512,
-              margin: '0 auto',
-              padding: '16px 20px',
+              paddingTop: 14,
+              paddingBottom: 14,
               display: 'flex',
               alignItems: 'center',
               gap: 12,
@@ -238,7 +223,7 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
           </div>
         </header>
 
-        <main style={{ maxWidth: 512, margin: '0 auto', padding: '40px 20px', textAlign: 'center' }}>
+        <main className="page-inner" style={{ paddingTop: 40, textAlign: 'center' }}>
           <Timer size={48} style={{ color: 'var(--primary)', marginBottom: 20 }} />
           <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 12 }}>Timed Challenge</h2>
           <p style={{ color: 'var(--text-muted)', marginBottom: 24 }}>
@@ -299,20 +284,12 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
     );
   }
 
-  // FINISHED
+  // ===================== FINISHED =====================
   if (!isRunning && timeLeft === 0) {
     return (
       <div
-        style={{
-          minHeight: '100vh',
-          backgroundColor: 'var(--bg)',
-          color: 'var(--text)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 20,
-        }}
+        className="page-shell"
+        style={{ alignItems: 'center', justifyContent: 'center', padding: 20 }}
       >
         {isNewRecord && (
           <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--primary)', marginBottom: 12 }}>
@@ -363,30 +340,13 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
     .join(' ');
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        backgroundColor: 'var(--bg)',
-        color: 'var(--text)',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <header
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 50,
-          backgroundColor: 'rgba(26,26,46,0.9)',
-          borderBottom: '1px solid var(--border)',
-          backdropFilter: 'blur(12px)',
-        }}
-      >
+    <div className="page-shell">
+      <header className="page-header">
         <div
+          className="page-inner"
           style={{
-            maxWidth: 512,
-            margin: '0 auto',
-            padding: '12px 16px',
+            paddingTop: 12,
+            paddingBottom: 12,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -418,23 +378,10 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
       </header>
 
       <main
-        style={{
-          flex: 1,
-          maxWidth: 512,
-          margin: '0 auto',
-          width: '100%',
-          padding: '16px 16px 8px',
-          paddingBottom: 'calc(22vh + 24px)',
-        }}
+        className="page-inner"
+        style={{ flex: 1, paddingTop: 16, paddingBottom: 'calc(22vh + 28px)' }}
       >
-        {/* Hints above card */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            marginBottom: 10,
-          }}
-        >
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
           <button
             onClick={useHint}
             disabled={hintsLeft <= 0 || !!feedback}
@@ -442,8 +389,7 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
               padding: '8px 14px',
               borderRadius: 14,
               border: '1px solid var(--border)',
-              background:
-                hintsLeft > 0 ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)',
+              background: hintsLeft > 0 ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)',
               color: hintsLeft > 0 ? 'var(--text)' : 'var(--text-muted)',
               cursor: hintsLeft > 0 ? 'pointer' : 'default',
               display: 'flex',
@@ -460,9 +406,11 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
         <div
           className={cardClass}
           style={{
+            width: '100%',
+            boxSizing: 'border-box',
             background: 'var(--card-front)',
             borderRadius: 'var(--radius-card)',
-            padding: '32px 20px',
+            padding: '32px 18px',
             textAlign: 'center',
             marginBottom: 16,
             boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
@@ -504,7 +452,8 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
           placeholder="e.g. 10 24"
           style={{
             width: '100%',
-            padding: '16px 20px',
+            boxSizing: 'border-box',
+            padding: '16px 18px',
             fontSize: 22,
             fontWeight: 600,
             textAlign: 'center',
@@ -522,18 +471,8 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
         />
       </main>
 
-      {/* Keypad slightly above bottom edge */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 40,
-          paddingBottom: 4,
-        }}
-      >
-        <div style={{ maxWidth: 512, margin: '0 auto' }}>
+      <div className="keypad-dock">
+        <div className="keypad-dock-inner">
           <NumericKeypad
             disabled={feedback === 'correct'}
             onDigit={(d) => setUserInput((prev) => prev + d)}

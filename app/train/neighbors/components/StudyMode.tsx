@@ -58,8 +58,6 @@ export default function StudyMode({ onBack }: StudyModeProps) {
 
   const count = depth === '1/1' ? 1 : 2;
   const { left, right } = getNeighborsWheelOrder(selected, count);
-
-  // All numbers on the card in ascending order
   const cardNumbers = [...left, selected, ...right].sort((a, b) => a - b);
 
   const loop = Array.from({ length: COPIES }, () => WHEEL_ORDER).flat();
@@ -149,9 +147,7 @@ export default function StudyMode({ onBack }: StudyModeProps) {
 
   const onPointerUp = () => {
     dragging.current = false;
-    if (didMove.current) {
-      normalizeScroll();
-    }
+    if (didMove.current) normalizeScroll();
   };
 
   const onWheel = (e: React.WheelEvent) => {
@@ -185,30 +181,13 @@ export default function StudyMode({ onBack }: StudyModeProps) {
   );
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        backgroundColor: 'var(--bg)',
-        color: 'var(--text)',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <header
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 50,
-          backgroundColor: 'color-mix(in srgb, var(--bg) 92%, transparent)',
-          borderBottom: '1px solid var(--border)',
-          backdropFilter: 'blur(12px)',
-        }}
-      >
+    <div className="page-shell">
+      <header className="page-header">
         <div
+          className="page-inner"
           style={{
-            maxWidth: 512,
-            margin: '0 auto',
-            padding: '12px 16px',
+            paddingTop: 12,
+            paddingBottom: 12,
             display: 'grid',
             gridTemplateColumns: '40px 1fr 40px',
             alignItems: 'center',
@@ -238,21 +217,13 @@ export default function StudyMode({ onBack }: StudyModeProps) {
         </div>
       </header>
 
-      <main
-        style={{
-          flex: 1,
-          maxWidth: 512,
-          margin: '0 auto',
-          width: '100%',
-          padding: '24px 16px',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
+      <main className="page-inner" style={{ flex: 1, paddingTop: 24, paddingBottom: 32 }}>
         <div
           key={spinKey}
           className="study-card-spin"
           style={{
+            width: '100%',
+            boxSizing: 'border-box',
             background: 'var(--card-front)',
             borderRadius: 'var(--radius-card)',
             padding: '40px 16px',
@@ -276,7 +247,14 @@ export default function StudyMode({ onBack }: StudyModeProps) {
           </div>
         </div>
 
-        <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>
+        <p
+          style={{
+            textAlign: 'center',
+            fontSize: 13,
+            color: 'var(--text-muted)',
+            marginBottom: 12,
+          }}
+        >
           Drag or scroll · tap a number
         </p>
 
@@ -300,6 +278,8 @@ export default function StudyMode({ onBack }: StudyModeProps) {
             cursor: 'grab',
             maskImage: 'linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)',
             touchAction: 'pan-x',
+            width: '100%',
+            boxSizing: 'border-box',
           }}
         >
           {loop.map((n, i) => {
