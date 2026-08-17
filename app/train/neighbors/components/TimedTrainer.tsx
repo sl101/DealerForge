@@ -164,7 +164,7 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
       vibrate([40, 30, 40]);
       const kept = userNums.filter((n) => correct.includes(n));
       const uniqueKept = Array.from(new Set([...kept, ...revealed]));
-      setUserInput(uniqueKept.join(' '));
+      setUserInput(uniqueKept.join(' ') + (uniqueKept.length ? ' ' : ''));
       setFeedback('wrong');
       setShake(true);
       setCurrentStreak(0);
@@ -195,10 +195,10 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
     setHintsLeft((prev) => prev - 1);
 
     const merged = Array.from(new Set([...normalizeAnswer(userInput), ...newRevealed]));
-    setUserInput(merged.join(' '));
+    // trailing space so next digit starts a new number
+    setUserInput(merged.join(' ') + ' ');
   };
 
-  // ===================== START =====================
   if (!isRunning && cards.length === 0) {
     return (
       <div className="page-shell">
@@ -284,7 +284,6 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
     );
   }
 
-  // ===================== FINISHED =====================
   if (!isRunning && timeLeft === 0) {
     return (
       <div
@@ -293,7 +292,7 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
       >
         {isNewRecord && (
           <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--primary)', marginBottom: 12 }}>
-            🎉 New Record!
+            New Record!
           </div>
         )}
         <h2 style={{ fontSize: 32, fontWeight: 700, marginBottom: 8 }}>Time&apos;s up!</h2>
@@ -415,6 +414,11 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
             marginBottom: 16,
             boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
             transition: 'box-shadow 0.2s',
+            minHeight: 140,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
           <div style={{ fontSize: 13, color: 'var(--card-text-muted)', marginBottom: 12 }}>
@@ -429,18 +433,6 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
           >
             {currentCard.number}
           </div>
-
-          {revealed.length > 0 && (
-            <div style={{ marginTop: 12, fontSize: 15, color: 'var(--card-text-muted)' }}>
-              Hint: {revealed.join('  ')}
-            </div>
-          )}
-
-          {feedback === 'correct' && (
-            <div style={{ marginTop: 10, fontSize: 16, fontWeight: 700, color: 'var(--success)' }}>
-              Correct!
-            </div>
-          )}
         </div>
 
         <input

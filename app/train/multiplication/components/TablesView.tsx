@@ -35,19 +35,31 @@ export default function TablesView({ onBack }: TablesViewProps) {
         </div>
       </header>
 
-      <main className="page-inner" style={{ paddingTop: 20, paddingBottom: 40 }}>
+      <main
+        className="page-inner"
+        style={{
+          flex: 1,
+          minHeight: 0,
+          paddingTop: 16,
+          paddingBottom: 24,
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
         <div
           style={{
             display: 'flex',
             gap: 8,
             flexWrap: 'wrap',
             justifyContent: 'center',
-            marginBottom: 24,
+            marginBottom: 16,
+            flexShrink: 0,
           }}
         >
           {MULTIPLIERS.map((m) => (
             <button
               key={m}
+              type="button"
               onClick={() => setActive(m)}
               style={{
                 minWidth: 52,
@@ -66,13 +78,17 @@ export default function TablesView({ onBack }: TablesViewProps) {
           ))}
         </div>
 
+        {/* Scroll only inside the card */}
         <div
           style={{
+            flex: 1,
+            minHeight: 0,
             background: 'var(--card-front)',
             borderRadius: 'var(--radius-card)',
-            padding: '8px 0',
             color: '#0f172a',
-            overflow: 'hidden',
+            overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
           }}
         >
           {rows.map(({ factor, answer }) => (

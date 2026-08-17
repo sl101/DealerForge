@@ -24,18 +24,40 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
   const [pool, setPool] = useState<Fact[]>([]);
   const [current, setCurrent] = useState<Fact | null>(null);
   const [answer, setAnswer] = useState('');
-  const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
+  const [toast, setToast] = useState<'correct' | 'wrong' | null>(null);
+  const [toastAnim, setToastAnim] = useState(false);
+  const [cardFlash, setCardFlash] = useState<'correct' | 'wrong' | null>(null);
   const [streak, setStreak] = useState(0);
   const [longest, setLongest] = useState(0);
   const [stats, setStats] = useState<Record<string, FactStats>>({});
   const [started, setStarted] = useState(false);
+  const [locked, setLocked] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setStats(loadStats());
     setLongest(getLongestStreak());
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    };
   }, []);
+
+  const showFeedback = (type: 'correct' | 'wrong') => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(type);
+    setCardFlash(type);
+    setToastAnim(false);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => setToastAnim(true));
+    });
+    toastTimer.current = setTimeout(() => {
+      setToast(null);
+      setToastAnim(false);
+      setCardFlash(null);
+    }, 750);
+  };
 
   const start = () => {
     const list = buildFacts(selected.length ? selected : MULTIPLIERS);
@@ -43,8 +65,10 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
     setPool(shuffled);
     setCurrent(shuffled[0] || null);
     setAnswer('');
-    setFeedback(null);
+    setToast(null);
+    setCardFlash(null);
     setStreak(0);
+    setLocked(false);
     setStarted(true);
     setTimeout(() => inputRef.current?.focus(), 200);
   };
@@ -64,9 +88,9 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
   };
 
   const submit = () => {
-    if (!current || !answer.trim() || feedback) return;
+    if (!current || !answer.trim() || locked) return;
     const ok = Number(answer) === current.answer;
-    setFeedback(ok ? 'correct' : 'wrong');
+    setLocked(true);
     setStats(updateFactStat(stats, current.id, ok));
 
     if (ok) {
@@ -77,20 +101,22 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
         setLongestStreak(s);
       }
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30);
+      showFeedback('correct');
       setTimeout(() => {
-        setFeedback(null);
         setAnswer('');
+        setLocked(false);
         nextFact(pool);
         setTimeout(() => inputRef.current?.focus(), 50);
-      }, 600);
+      }, 500);
     } else {
       setStreak(0);
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([40, 30, 40]);
+      showFeedback('wrong');
       setTimeout(() => {
-        setFeedback(null);
         setAnswer('');
+        setLocked(false);
         inputRef.current?.focus();
-      }, 700);
+      }, 550);
     }
   };
 
@@ -100,7 +126,13 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
         <header className="page-header">
           <div
             className="page-inner"
-            style={{ paddingTop: 14, paddingBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}
+            style={{
+              paddingTop: 14,
+              paddingBottom: 14,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+            }}
           >
             <button
               onClick={onBack}
@@ -136,6 +168,7 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
               return (
                 <button
                   key={m}
+                  type="button"
                   onClick={() =>
                     setSelected((prev) => {
                       if (prev.includes(m)) return prev.length === 1 ? prev : prev.filter((x) => x !== m);
@@ -159,6 +192,7 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
           </div>
 
           <button
+            type="button"
             onClick={start}
             style={{
               background: 'var(--primary)',
@@ -177,6 +211,9 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
       </div>
     );
   }
+
+  const cardClass =
+    cardFlash === 'correct' ? 'pop card-glow-correct' : cardFlash === 'wrong' ? 'shake card-glow-wrong' : '';
 
   return (
     <div className="page-shell">
@@ -211,26 +248,48 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
         {current && (
           <>
             <div
+              className={cardClass}
               style={{
+                position: 'relative',
                 background: 'var(--card-front)',
                 borderRadius: 'var(--radius-card)',
                 padding: '36px 18px',
                 textAlign: 'center',
                 marginBottom: 16,
                 boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+                minHeight: 120,
+                boxSizing: 'border-box',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
               }}
             >
+              {toast && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 12,
+                    left: 0,
+                    right: 0,
+                    textAlign: 'center',
+                    fontWeight: 800,
+                    fontSize: 15,
+                    letterSpacing: 0.5,
+                    color: toast === 'correct' ? 'var(--success)' : 'var(--error)',
+                    transform: toastAnim ? 'translateY(-18px)' : 'translateY(0)',
+                    opacity: toastAnim ? 0 : 1,
+                    transition: 'transform 0.7s ease-out, opacity 0.7s ease-out',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  {toast === 'correct' ? 'Correct' : 'Wrong'}
+                </div>
+              )}
+
               <div style={{ fontSize: 48, fontWeight: 800, color: '#0f172a' }}>
                 {current.multiplier} × {current.factor}
               </div>
-              {feedback === 'correct' && (
-                <div style={{ marginTop: 12, color: 'var(--success)', fontWeight: 700 }}>Correct!</div>
-              )}
-              {feedback === 'wrong' && (
-                <div style={{ marginTop: 12, color: 'var(--error)', fontWeight: 700 }}>
-                  {current.answer}
-                </div>
-              )}
             </div>
 
             <input
@@ -248,12 +307,7 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
                 fontWeight: 700,
                 textAlign: 'center',
                 borderRadius: 16,
-                border:
-                  feedback === 'wrong'
-                    ? '2px solid var(--error)'
-                    : feedback === 'correct'
-                    ? '2px solid var(--success)'
-                    : '2px solid var(--border)',
+                border: '2px solid var(--border)',
                 background: 'rgba(255,255,255,0.05)',
                 color: 'white',
                 outline: 'none',
@@ -266,7 +320,7 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
       <div className="keypad-dock">
         <div className="keypad-dock-inner">
           <NumericKeypad
-            disabled={feedback === 'correct'}
+            disabled={locked}
             onDigit={(d) => setAnswer((a) => a + d)}
             onBackspace={() => setAnswer((a) => a.slice(0, -1))}
             onSpace={() => {}}

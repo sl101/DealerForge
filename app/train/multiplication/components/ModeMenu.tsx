@@ -7,16 +7,9 @@ interface ModeMenuProps {
   onTables: () => void;
   onCards: () => void;
   onPractice: () => void;
-  onTimed: () => void;
 }
 
-export default function ModeMenu({
-  onBack,
-  onTables,
-  onCards,
-  onPractice,
-  onTimed,
-}: ModeMenuProps) {
+export default function ModeMenu({ onBack, onTables, onCards, onPractice }: ModeMenuProps) {
   return (
     <div className="page-shell">
       <header className="page-header">
@@ -66,14 +59,7 @@ export default function ModeMenu({
           <button onClick={onPractice} className="mode-card">
             <div style={{ fontSize: 22, fontWeight: 600 }}>Practice</div>
             <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 4 }}>
-              Type answers · no timer · streaks
-            </div>
-          </button>
-
-          <button onClick={onTimed} className="mode-card">
-            <div style={{ fontSize: 22, fontWeight: 600 }}>Timed Challenge</div>
-            <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 4 }}>
-              Race the clock · score & streaks
+              Type answers · streaks
             </div>
           </button>
         </div>

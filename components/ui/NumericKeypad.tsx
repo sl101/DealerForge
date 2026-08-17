@@ -12,7 +12,7 @@ const KEYS = [
   ['1', '2', '3'],
   ['4', '5', '6'],
   ['7', '8', '9'],
-  ['⌫', '0', '␣'],
+  ['␣', '0', '⌫'],
 ];
 
 export default function NumericKeypad({
@@ -32,7 +32,7 @@ export default function NumericKeypad({
   return (
     <div
       style={{
-        //width: '100%',
+        width: '100%',
         padding: '8px 12px',
         paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
         marginBottom: 8,
@@ -43,6 +43,7 @@ export default function NumericKeypad({
         flexDirection: 'column',
         gap: 6,
         boxShadow: '0 -8px 24px rgba(0,0,0,0.35)',
+        boxSizing: 'border-box',
       }}
     >
       {KEYS.map((row, ri) => (

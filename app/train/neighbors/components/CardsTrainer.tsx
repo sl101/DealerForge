@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Check, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Check, X, Undo2 } from 'lucide-react';
 import {
   NEIGHBOR_CARDS,
   NeighborCard,
@@ -17,6 +17,15 @@ interface CardsTrainerProps {
   onBack: () => void;
 }
 
+interface Snapshot {
+  current: NeighborCard;
+  currentFromReview: boolean;
+  newQueue: NeighborCard[];
+  reviewQueue: NeighborCard[];
+  seenIds: number[];
+  seenCount: number;
+}
+
 export default function CardsTrainer({ onBack }: CardsTrainerProps) {
   const [depth, setDepth] = useState<Depth>('1/1');
   const [direction, setDirection] = useState<Direction>('number-first');
@@ -30,7 +39,7 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
   const [currentFromReview, setCurrentFromReview] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const [stats, setStats] = useState<Record<number, NumberStats>>({});
-  const [history, setHistory] = useState<{ card: NeighborCard; fromReview: boolean }[]>([]);
+  const [history, setHistory] = useState<Snapshot[]>([]);
   const [cardKey, setCardKey] = useState(0);
 
   const cardRef = useRef<FlashCardHandle>(null);
@@ -45,6 +54,7 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
     setNewQueue(shuffled.slice(1));
     setSeenIds(new Set([first.number]));
     setSeenCount(1);
+    setHistory([]);
   }, []);
 
   const pickNext = (
@@ -84,15 +94,30 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
     };
   };
 
-  const advance = (action: 'know' | 'repeat' | 'skip') => {
+  const pushSnapshot = () => {
     if (!current) return;
+    setHistory((prev) => [
+      ...prev,
+      {
+        current,
+        currentFromReview,
+        newQueue: [...newQueue],
+        reviewQueue: [...reviewQueue],
+        seenIds: Array.from(seenIds),
+        seenCount,
+      },
+    ]);
+  };
+
+  const advance = (action: 'know' | 'repeat') => {
+    if (!current) return;
+
+    pushSnapshot();
     setIsFlipped(false);
 
     let nextReview = [...reviewQueue];
     const nextNew = [...newQueue];
     const nextSeen = new Set(seenIds);
-
-    setHistory((prev) => [...prev, { card: current, fromReview: currentFromReview }]);
 
     if (action === 'know') {
       nextReview = nextReview.filter((c) => c.number !== current.number);
@@ -112,7 +137,11 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
 
     const result = pickNext(nextNew, nextReview, nextSeen);
 
-    setReviewQueue(nextReview);
+    setReviewQueue(
+      result.fromReview
+        ? nextReview.filter((c) => c.number !== result.card?.number)
+        : nextReview
+    );
     setNewQueue(result.newQ);
     setSeenIds(result.seen);
     setSeenCount(result.seen.size);
@@ -135,30 +164,23 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
     advance('repeat');
   };
 
-  /** Buttons: play exit animation, then advance */
   const onKnowClick = () => cardRef.current?.animateKnow();
   const onRepeatClick = () => cardRef.current?.animateRepeat();
 
-  const goNext = () => advance('skip');
-
-  const goPrev = () => {
-    if (history.length === 0 || !current) return;
-    setIsFlipped(false);
+  /** Restore full previous state — undo as many steps as history allows */
+  const undo = () => {
+    if (history.length === 0) return;
 
     const prev = history[history.length - 1];
     setHistory((h) => h.slice(0, -1));
 
-    if (currentFromReview) {
-      setReviewQueue((q) => {
-        if (q.some((c) => c.number === current.number)) return q;
-        return [current, ...q];
-      });
-    } else {
-      setNewQueue((q) => [current, ...q]);
-    }
-
-    setCurrent(prev.card);
-    setCurrentFromReview(prev.fromReview);
+    setCurrent(prev.current);
+    setCurrentFromReview(prev.currentFromReview);
+    setNewQueue(prev.newQueue);
+    setReviewQueue(prev.reviewQueue);
+    setSeenIds(new Set(prev.seenIds));
+    setSeenCount(prev.seenCount);
+    setIsFlipped(false);
     setCardKey((k) => k + 1);
   };
 
@@ -267,27 +289,49 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
             gap: 12,
-            marginBottom: 16,
           }}
         >
-          <button
-            onClick={onRepeatClick}
-            className="btn-repeat"
-            style={{
-              padding: 15,
-              borderRadius: 'var(--radius-btn)',
-              border: 'none',
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: 15,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-            }}
-          >
-            <X size={18} /> Repeat
-          </button>
+          {/* Left: Repeat + Undo aligned left under Repeat */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <button
+              onClick={onRepeatClick}
+              className="btn-repeat"
+              style={{
+                padding: 15,
+                borderRadius: 'var(--radius-btn)',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: 600,
+                fontSize: 15,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+              }}
+            >
+              <X size={18} /> Repeat
+            </button>
+            <button
+              type="button"
+              onClick={undo}
+              disabled={history.length === 0}
+              title="Undo last action"
+              style={{
+                alignSelf: 'flex-start',
+                background: 'none',
+                border: 'none',
+                color: history.length === 0 ? 'var(--text-muted)' : 'var(--primary)',
+                opacity: history.length === 0 ? 0.35 : 1,
+                cursor: history.length === 0 ? 'default' : 'pointer',
+                padding: '6px 4px',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <Undo2 size={20} />
+            </button>
+          </div>
+
           <button
             onClick={onKnowClick}
             className="btn-know"
@@ -302,46 +346,10 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
               alignItems: 'center',
               justifyContent: 'center',
               gap: 8,
+              height: 'fit-content',
             }}
           >
             <Check size={18} /> Know
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', gap: 12 }}>
-          <button
-            onClick={goPrev}
-            disabled={history.length === 0}
-            className="btn-nav"
-            style={{
-              flex: 1,
-              padding: 13,
-              borderRadius: 'var(--radius-btn)',
-              cursor: history.length === 0 ? 'default' : 'pointer',
-              opacity: history.length === 0 ? 0.4 : 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-            }}
-          >
-            <ChevronLeft size={18} /> Prev
-          </button>
-          <button
-            onClick={goNext}
-            className="btn-nav"
-            style={{
-              flex: 1,
-              padding: 13,
-              borderRadius: 'var(--radius-btn)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-            }}
-          >
-            Next <ChevronRight size={18} />
           </button>
         </div>
       </main>
