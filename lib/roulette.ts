@@ -108,13 +108,13 @@ function streetsFor(n: number): string[] {
 }
 
 function sixLinesFor(n: number): string[] {
-  if (n === 0 || n <= 3) return ['1-6'];
+  if (n === 0) return []; // zero has no six-line
+  if (n <= 3) return ['1-6'];
   if (n >= 34) return ['31-36'];
   const rowStart = Math.floor((n - 1) / 3) * 3 + 1;
   const list: string[] = [];
   if (rowStart > 1) list.push(`${rowStart - 3}-${rowStart + 2}`);
   if (rowStart + 5 <= 36) list.push(`${rowStart}-${rowStart + 5}`);
-  if (list.length === 0) return ['31-36'];
   return list;
 }
 

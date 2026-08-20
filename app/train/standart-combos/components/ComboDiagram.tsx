@@ -12,47 +12,69 @@ interface ComboDiagramProps {
   size?: number;
 }
 
-const CELL = 22;
-const OX = (100 - CELL * 3) / 2;
-const OY = (100 - CELL * 3) / 2;
+/** Square cell size in viewBox units (0..100). Larger = bigger grid. */
+const CELL = 26;
+const GRID = CELL * 3;
+const OX = (100 - GRID) / 2;
+const OY = (100 - GRID) / 2;
 
 function cellCenter(col: number, row: number) {
   return { x: OX + CELL * (col + 0.5), y: OY + CELL * (row + 0.5) };
 }
+
 function hEdge(col: number, rowLine: number) {
   return { x: OX + CELL * (col + 0.5), y: OY + CELL * rowLine };
 }
+
 function vEdge(colLine: number, row: number) {
   return { x: OX + CELL * colLine, y: OY + CELL * (row + 0.5) };
 }
+
 function cornerPt(colLine: number, rowLine: number) {
   return { x: OX + CELL * colLine, y: OY + CELL * rowLine };
 }
 
-function buildFocusAnchors(): Partial<Record<ChipPos, { x: number; y: number }>> {
+/**
+ * Focus cell at (focusCol, focusRow) inside 3×3.
+ * left → (0,1), center → (1,1), right → (2,1)
+ * bottom34/35/36 → (0|1|2, 2)
+ */
+function buildAnchorsAtFocus(
+  focusCol: 0 | 1 | 2,
+  focusRow: 0 | 1 | 2
+): Partial<Record<ChipPos, { x: number; y: number }>> {
+  const c = focusCol;
+  const r = focusRow;
   return {
-    C: cellCenter(1, 1),
-    N: hEdge(1, 1),
-    S: hEdge(1, 2),
-    W: vEdge(1, 1),
-    E: vEdge(2, 1),
-    NW: cornerPt(1, 1),
-    NE: cornerPt(2, 1),
-    SW: cornerPt(1, 2),
-    SE: cornerPt(2, 2),
-    street: { x: OX, y: OY + CELL * 1.5 },
-    six_N: { x: OX, y: OY + CELL * 1 },
-    six_S: { x: OX, y: OY + CELL * 2 },
+    C: cellCenter(c, r),
+    N: hEdge(c, r),
+    S: hEdge(c, r + 1),
+    W: vEdge(c, r),
+    E: vEdge(c + 1, r),
+    NW: cornerPt(c, r),
+    NE: cornerPt(c + 1, r),
+    SW: cornerPt(c, r + 1),
+    SE: cornerPt(c + 1, r + 1),
+    // street / six-line on LEFT edge of diagram (training convention)
+    street: { x: OX, y: OY + CELL * (r + 0.5) },
+    six_N: { x: OX, y: OY + CELL * r },
+    six_S: { x: OX, y: OY + CELL * (r + 1) },
   };
 }
 
-const FOCUS_ANCHORS = buildFocusAnchors();
+const CENTER_ANCHORS = buildAnchorsAtFocus(1, 1);
+const LEFT_ANCHORS = buildAnchorsAtFocus(0, 1);
+const RIGHT_ANCHORS = buildAnchorsAtFocus(2, 1);
+const BOTTOM34_ANCHORS = buildAnchorsAtFocus(0, 2);
+const BOTTOM35_ANCHORS = buildAnchorsAtFocus(1, 2);
+const BOTTOM36_ANCHORS = buildAnchorsAtFocus(2, 2);
 
+/* ---------- Zero: 0 band + row 1-2-3 (square cells) ---------- */
 const Z_L = OX;
-const Z_TOP = OY;
+const Z_TOP = OY + CELL * 0.5;
 const Z_DIV = Z_TOP + CELL;
 const Z_BOT = Z_DIV + CELL;
-const Z_R = Z_L + CELL * 3;
+const Z_R = Z_L + GRID;
 const Z_MID = (Z_L + Z_R) / 2;
 const Z_COL1 = Z_L + CELL;
 const Z_COL2 = Z_L + CELL * 2;
@@ -67,12 +89,13 @@ const ZERO_ANCHORS: Partial<Record<ChipPos, { x: number; y: number }>> = {
   Z_street_023: { x: Z_COL2, y: Z_DIV },
 };
 
+/* ---------- n1/n2/n3: 0 + 1-2-3 + 4-5-6 ---------- */
 const N_L = OX;
-const N_TOP = (100 - CELL * 3) / 2;
+const N_TOP = OY;
 const N_DIV0 = N_TOP + CELL;
 const N_DIV1 = N_DIV0 + CELL;
 const N_BOT = N_DIV1 + CELL;
-const N_R = N_L + CELL * 3;
+const N_R = N_L + GRID;
 const N_MID = (N_L + N_R) / 2;
 const N_C1 = N_L + CELL;
 const N_C2 = N_L + CELL * 2;
@@ -113,7 +136,7 @@ const N1_ANCHORS = buildNAnchors(1);
 const N2_ANCHORS = buildNAnchors(2);
 const N3_ANCHORS = buildNAnchors(3);
 
-function anchorsFor(family: GridFamily) {
+function anchorsFor(family: GridFamily): Partial<Record<ChipPos, { x: number; y: number }>> {
   switch (family) {
     case 'zero':
       return ZERO_ANCHORS;
@@ -123,14 +146,23 @@ function anchorsFor(family: GridFamily) {
       return N2_ANCHORS;
     case 'n3':
       return N3_ANCHORS;
+    case 'left':
+      return LEFT_ANCHORS;
+    case 'right':
+      return RIGHT_ANCHORS;
+    case 'bottom34':
+      return BOTTOM34_ANCHORS;
+    case 'bottom35':
+      return BOTTOM35_ANCHORS;
+    case 'bottom36':
+      return BOTTOM36_ANCHORS;
+    case 'center':
     default:
-      return FOCUS_ANCHORS;
+      return CENTER_ANCHORS;
   }
 }
 
-function normalizeChip(
-  c: DiagramChip
-): { pos: ChipPos; label?: string | number } {
+function normalizeChip(c: DiagramChip): { pos: ChipPos; label?: string | number } {
   if (typeof c === 'string') return { pos: c };
   return c;
 }
@@ -144,16 +176,27 @@ function Chip({
   y: number;
   label?: string | number;
 }) {
-  const r = label != null ? 5.6 : 4.2;
+  // Radius ~18% of cell — readable, not glued together
+  const r = label != null ? CELL * 0.2 : CELL * 0.16;
+  const fontSize =
+    label != null && String(label).length > 2 ? CELL * 0.16 : CELL * 0.2;
+
   return (
     <g>
-      <circle cx={x} cy={y} r={r} fill="#e11d48" stroke="#9f1239" strokeWidth={0.5} />
+      <circle
+        cx={x}
+        cy={y}
+        r={r}
+        fill="#e11d48"
+        stroke="#9f1239"
+        strokeWidth={0.55}
+      />
       {label != null && (
         <text
           x={x}
-          y={y + 1.4}
+          y={y + fontSize * 0.35}
           textAnchor="middle"
-          fontSize={label.toString().length > 2 ? 4.2 : 5}
+          fontSize={fontSize}
           fontWeight={700}
           fill="#fff"
         >
@@ -170,11 +213,11 @@ function FocusGrid() {
       <rect
         x={OX}
         y={OY}
-        width={CELL * 3}
-        height={CELL * 3}
+        width={GRID}
+        height={GRID}
         fill="#f8fafc"
         stroke="#64748b"
-        strokeWidth={1.2}
+        strokeWidth={1.25}
       />
       {[1, 2].map((i) => (
         <g key={i}>
@@ -182,14 +225,14 @@ function FocusGrid() {
             x1={OX + CELL * i}
             y1={OY}
             x2={OX + CELL * i}
-            y2={OY + CELL * 3}
+            y2={OY + GRID}
             stroke="#64748b"
             strokeWidth={1}
           />
           <line
             x1={OX}
             y1={OY + CELL * i}
-            x2={OX + CELL * 3}
+            x2={OX + GRID}
             y2={OY + CELL * i}
             stroke="#64748b"
             strokeWidth={1}
@@ -206,15 +249,36 @@ function ZeroGrid() {
       <rect
         x={Z_L}
         y={Z_TOP}
-        width={CELL * 3}
+        width={GRID}
         height={CELL * 2}
         fill="#f8fafc"
         stroke="#64748b"
-        strokeWidth={1.2}
+        strokeWidth={1.25}
       />
-      <line x1={Z_L} y1={Z_DIV} x2={Z_R} y2={Z_DIV} stroke="#64748b" strokeWidth={1.1} />
-      <line x1={Z_COL1} y1={Z_DIV} x2={Z_COL1} y2={Z_BOT} stroke="#64748b" strokeWidth={1} />
-      <line x1={Z_COL2} y1={Z_DIV} x2={Z_COL2} y2={Z_BOT} stroke="#64748b" strokeWidth={1} />
+      <line
+        x1={Z_L}
+        y1={Z_DIV}
+        x2={Z_R}
+        y2={Z_DIV}
+        stroke="#64748b"
+        strokeWidth={1.15}
+      />
+      <line
+        x1={Z_COL1}
+        y1={Z_DIV}
+        x2={Z_COL1}
+        y2={Z_BOT}
+        stroke="#64748b"
+        strokeWidth={1}
+      />
+      <line
+        x1={Z_COL2}
+        y1={Z_DIV}
+        x2={Z_COL2}
+        y2={Z_BOT}
+        stroke="#64748b"
+        strokeWidth={1}
+      />
     </g>
   );
 }
@@ -225,22 +289,50 @@ function NGrid({ showZeroLabel }: { showZeroLabel: boolean }) {
       <rect
         x={N_L}
         y={N_TOP}
-        width={CELL * 3}
+        width={GRID}
         height={CELL * 3}
         fill="#f8fafc"
         stroke="#64748b"
-        strokeWidth={1.2}
+        strokeWidth={1.25}
       />
-      <line x1={N_L} y1={N_DIV0} x2={N_R} y2={N_DIV0} stroke="#64748b" strokeWidth={1.1} />
-      <line x1={N_L} y1={N_DIV1} x2={N_R} y2={N_DIV1} stroke="#64748b" strokeWidth={1.1} />
-      <line x1={N_C1} y1={N_DIV0} x2={N_C1} y2={N_BOT} stroke="#64748b" strokeWidth={1} />
-      <line x1={N_C2} y1={N_DIV0} x2={N_C2} y2={N_BOT} stroke="#64748b" strokeWidth={1} />
+      <line
+        x1={N_L}
+        y1={N_DIV0}
+        x2={N_R}
+        y2={N_DIV0}
+        stroke="#64748b"
+        strokeWidth={1.15}
+      />
+      <line
+        x1={N_L}
+        y1={N_DIV1}
+        x2={N_R}
+        y2={N_DIV1}
+        stroke="#64748b"
+        strokeWidth={1.15}
+      />
+      <line
+        x1={N_C1}
+        y1={N_DIV0}
+        x2={N_C1}
+        y2={N_BOT}
+        stroke="#64748b"
+        strokeWidth={1}
+      />
+      <line
+        x1={N_C2}
+        y1={N_DIV0}
+        x2={N_C2}
+        y2={N_BOT}
+        stroke="#64748b"
+        strokeWidth={1}
+      />
       {showZeroLabel && (
         <text
           x={N_MID}
           y={N_TOP + CELL / 2 + 4}
           textAnchor="middle"
-          fontSize={10}
+          fontSize={CELL * 0.38}
           fontWeight={700}
           fill="#16a34a"
         >
@@ -259,7 +351,11 @@ function Grid({ family }: { family: GridFamily }) {
   return <FocusGrid />;
 }
 
-export default function ComboDiagram({ family, chips, size = 280 }: ComboDiagramProps) {
+export default function ComboDiagram({
+  family,
+  chips,
+  size = 300,
+}: ComboDiagramProps) {
   const anchors = anchorsFor(family);
 
   return (
@@ -268,7 +364,12 @@ export default function ComboDiagram({ family, chips, size = 280 }: ComboDiagram
       height="auto"
       viewBox="0 0 100 100"
       preserveAspectRatio="xMidYMid meet"
-      style={{ maxWidth: size, display: 'block', margin: '0 auto', borderRadius: 12 }}
+      style={{
+        maxWidth: size,
+        display: 'block',
+        margin: '0 auto',
+        borderRadius: 12,
+      }}
     >
       <Grid family={family} />
       {chips.map((raw, i) => {

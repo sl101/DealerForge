@@ -40,6 +40,24 @@ const LEVEL_CONFIG: Record<
   },
 };
 
+const MULT: Record<string, number> = {
+  Straight: 35,
+  Split: 17,
+  Corner: 8,
+  Street: 11,
+  SixLine: 5,
+};
+
+function logTask(lv: Level, task: RouletteTask) {
+  const lines = (task.bets || []).map((b) => {
+    const m = MULT[b.type] ?? 1;
+    return `  ${b.count} × ${b.type} on ${b.positions} → ${b.count * m}`;
+  });
+  console.log(
+    `[Payout L${lv}] win=${task.winningNumber}\n${lines.join('\n')}\n  TOTAL = ${task.correctAnswer}`
+  );
+}
+
 export default function PayoutTrainerPage() {
   const router = useRouter();
 
@@ -53,7 +71,7 @@ export default function PayoutTrainerPage() {
   const [attempts, setAttempts] = useState(0);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const stopTimer = () => {
@@ -84,6 +102,7 @@ export default function PayoutTrainerPage() {
     setUserAnswer('');
     setIsCorrect(null);
     startTimer(cfg.timeSec);
+    logTask(lv, newTask);
     setTimeout(() => inputRef.current?.focus(), 200);
   };
 
@@ -123,7 +142,6 @@ export default function PayoutTrainerPage() {
 
   const nextTask = () => createTask(level);
 
-  // ===================== MENU =====================
   if (screen === 'menu') {
     return (
       <div className="page-shell">
@@ -139,8 +157,14 @@ export default function PayoutTrainerPage() {
             }}
           >
             <button
+              type="button"
               onClick={() => router.push('/')}
-              style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--primary)',
+                cursor: 'pointer',
+              }}
             >
               <ArrowLeft size={22} />
             </button>
@@ -150,7 +174,9 @@ export default function PayoutTrainerPage() {
         <main className="page-inner" style={{ paddingTop: 32, paddingBottom: 40 }}>
           <div style={{ textAlign: 'center', marginBottom: 36 }}>
             <Trophy size={40} style={{ color: 'var(--primary)', marginBottom: 12 }} />
-            <h1 style={{ fontSize: 28, fontWeight: 700, margin: '0 0 8px' }}>Payout Trainer</h1>
+            <h1 style={{ fontSize: 28, fontWeight: 700, margin: '0 0 8px' }}>
+              Payout Trainer
+            </h1>
             <p style={{ color: 'var(--text-muted)', fontSize: 15, margin: 0 }}>
               Calculate chips for covered winning numbers
             </p>
@@ -160,11 +186,12 @@ export default function PayoutTrainerPage() {
             {(Object.keys(LEVEL_CONFIG) as unknown as Level[]).map((id) => (
               <button
                 key={id}
-                onClick={() => startLevel(id)}
+                type="button"
+                onClick={() => startLevel(Number(id) as Level)}
                 className="mode-card"
                 style={{ textAlign: 'center', fontSize: 20, fontWeight: 700, padding: 20 }}
               >
-                {LEVEL_CONFIG[id].title}
+                {LEVEL_CONFIG[id as unknown as Level].title}
               </button>
             ))}
           </div>
@@ -173,9 +200,11 @@ export default function PayoutTrainerPage() {
     );
   }
 
-  // ===================== PLAY =====================
   return (
-    <div className="page-shell">
+    <div
+      className="page-shell"
+      style={{ display: 'flex', flexDirection: 'column', height: '100dvh' }}
+    >
       <header className="page-header">
         <div
           className="page-inner"
@@ -186,11 +215,18 @@ export default function PayoutTrainerPage() {
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: 8,
+            maxWidth: '100%',
           }}
         >
           <button
+            type="button"
             onClick={backToMenu}
-            style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--primary)',
+              cursor: 'pointer',
+            }}
           >
             <ArrowLeft size={20} />
           </button>
@@ -219,141 +255,96 @@ export default function PayoutTrainerPage() {
         </div>
       </header>
 
-      <main
-        className="page-inner"
-        style={{
-          flex: 1,
-          paddingTop: 20,
-          paddingBottom: 'calc(22vh + 24px)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
-        {task && (
-          <>
-						<div
-							style={{
-								width: '100%',
-								boxSizing: 'border-box',
-								background: 'var(--card-front)',
-								borderRadius: 'var(--radius-card)',
-								padding: '24px 18px',
-								marginBottom: 20,
-								boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
-								color: '#0f172a',
-							}}
-						>
-							<div
-								style={{
-									fontSize: 15,
-									fontWeight: 700,
-									marginBottom: 14,
-									textAlign: 'center',
-								}}
-							>
-								Winning number:{' '}
-								<span style={{ color: 'var(--number-red, #dc2626)' }}>{task.winningNumber}</span>
-							</div>
+      <div className="play-with-keypad">
+        <main className="play-main page-inner" style={{ paddingTop: 16 }}>
+          {task && (
+            <>
+              <div className="task-card">
+                <div className="task-card-title">
+                  Payout for{' '}
+                  <span style={{ color: 'var(--number-red)' }}>{task.winningNumber}</span>
+                </div>
+                <div className="combo-diagram">
+                  <ComboDiagram
+                    family={familyFromNumber(task.winningNumber)}
+                    chips={betsToStacks(task.winningNumber, task.bets || []).map((s) => ({
+                      pos: s.pos,
+                      label: s.label,
+                    }))}
+                    size={220}
+                  />
+                </div>
+              </div>
 
-							<div style={{ fontSize: 14, lineHeight: 1.7, textAlign: 'center', marginBottom: 16 }}>
-								{task.bets?.map((b, i) => (
-									<div key={i}>
-										{b.count} × {b.type} on {b.positions}
-									</div>
-								))}
-							</div>
-
-							{/* Diagram */}
-							<div style={{ marginTop: 8 }}>
-								<ComboDiagram
-									family={familyFromNumber(task.winningNumber)}
-									chips={betsToStacks(task.winningNumber, task.bets || []).map((s) => ({
-										pos: s.pos,
-										label: s.label,
-									}))}
-									size={260}
-								/>
-							</div>
-						</div>
-
-            <input
-              ref={inputRef}
-              type="text"
-              readOnly
-              inputMode="none"
-              value={userAnswer}
-              placeholder="Total payout chips"
-              style={{
-                width: '100%',
-                maxWidth: 280,
-                boxSizing: 'border-box',
-                padding: '12px 16px',
-                fontSize: 20,
-                fontWeight: 700,
-                textAlign: 'center',
-                borderRadius: 14,
-                border:
-                  isCorrect === true
-                    ? '2px solid var(--success)'
-                    : isCorrect === false
-                    ? '2px solid var(--error)'
-                    : '2px solid var(--border)',
-                background: 'rgba(255,255,255,0.06)',
-                color: 'white',
-                outline: 'none',
-                marginBottom: 12,
-              }}
-            />
-
-            {isCorrect !== null && (
-              <div
+              <input
+                ref={inputRef}
+                className="answer-input"
+                type="text"
+                readOnly
+                inputMode="none"
+                value={userAnswer}
+                placeholder="Total"
                 style={{
-                  width: '100%',
-                  maxWidth: 280,
-                  boxSizing: 'border-box',
-                  padding: 14,
-                  borderRadius: 14,
-                  textAlign: 'center',
-                  background: isCorrect ? 'var(--success-bg)' : 'var(--error-bg)',
-                  color: isCorrect ? 'var(--success)' : 'var(--error)',
-                  fontWeight: 700,
-                  fontSize: 16,
+                  border:
+                    isCorrect === true
+                      ? '2px solid var(--success)'
+                      : isCorrect === false
+                      ? '2px solid var(--error)'
+                      : '2px solid var(--border)',
                 }}
-              >
-                {isCorrect ? 'Correct!' : `Wrong · ${task.correctAnswer}`}
-                <button
-                  onClick={nextTask}
+              />
+
+              {isCorrect !== null && (
+                <div
                   style={{
-                    display: 'block',
                     width: '100%',
-                    marginTop: 12,
-                    padding: 12,
-                    borderRadius: 12,
-                    border: 'none',
-                    background: 'var(--primary)',
-                    color: '#000',
+                    maxWidth: 280,
+                    margin: '0 auto',
+                    boxSizing: 'border-box',
+                    padding: 14,
+                    borderRadius: 14,
+                    textAlign: 'center',
+                    background: isCorrect ? 'var(--success-bg)' : 'var(--error-bg)',
+                    color: isCorrect ? 'var(--success)' : 'var(--error)',
                     fontWeight: 700,
-                    cursor: 'pointer',
+                    fontSize: 16,
                   }}
                 >
-                  Next task →
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </main>
+                  {isCorrect ? 'Correct!' : `Wrong · ${task.correctAnswer}`}
+                  <button
+                    type="button"
+                    onClick={nextTask}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      marginTop: 12,
+                      padding: 12,
+                      borderRadius: 12,
+                      border: 'none',
+                      background: 'var(--primary)',
+                      color: '#000',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Next task →
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </main>
 
-      <div className="keypad-dock">
-        <div className="keypad-dock-inner">
-          <NumericKeypad
-            disabled={isCorrect !== null}
-            onDigit={(d) => setUserAnswer((prev) => prev + d)}
-            onBackspace={() => setUserAnswer((prev) => prev.slice(0, -1))}
-            onSpace={() => {}}
-            onEnter={handleSubmit}
-          />
+        <div className="keypad-dock">
+          <div className="keypad-dock-inner">
+            <NumericKeypad
+              disabled={isCorrect !== null}
+              onDigit={(d) => setUserAnswer((prev) => prev + d)}
+              onBackspace={() => setUserAnswer((prev) => prev.slice(0, -1))}
+              onSpace={() => {}}
+              onEnter={handleSubmit}
+            />
+          </div>
         </div>
       </div>
 

@@ -41,16 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className="dark">
       <body className={`${inter.className} app-shell`}>
         <AuthProvider>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: '100dvh',
-              width: '100%',
-              maxWidth: '100%',
-              overflowX: 'hidden',
-            }}
-          >
+          <div className="app-root">
             <AdBanner />
             <div style={{ flex: 1, minHeight: 0, width: '100%', overflowX: 'hidden' }}>
               {children}

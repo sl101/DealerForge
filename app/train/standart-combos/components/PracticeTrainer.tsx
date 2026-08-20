@@ -25,7 +25,6 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
   const [cardFlash, setCardFlash] = useState<'correct' | 'wrong' | null>(null);
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
-  const [solved, setSolved] = useState(0);
   const [locked, setLocked] = useState(false);
   const [started, setStarted] = useState(false);
   const [, setStats] = useState<Record<string, ComboStats>>({});
@@ -53,13 +52,11 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
     setToast(null);
     setCardFlash(null);
     setStreak(0);
-    setSolved(0);
     setLocked(false);
     setStarted(true);
   };
 
   const current = deck[index] || null;
-  const total = STANDARD_COMBOS.length;
 
   const showFeedback = (type: 'correct' | 'wrong') => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -83,7 +80,6 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
     setStats((prev) => updateComboStat(prev, current.id, ok));
 
     if (ok) {
-      setSolved((n) => n + 1);
       setStreak((s) => {
         const next = s + 1;
         setBestStreak((b) => {
@@ -138,8 +134,14 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
             }}
           >
             <button
+              type="button"
               onClick={onBack}
-              style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--primary)',
+                cursor: 'pointer',
+              }}
             >
               <ArrowLeft size={22} />
             </button>
@@ -183,110 +185,101 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
       ? 'shake card-glow-wrong'
       : '';
 
-  const progressPct = total > 0 ? Math.min(100, (solved / total) * 100) : 0;
-
   return (
-    <div className="page-shell">
-				<header className="page-header">
-					<div
-						className="page-inner"
-						style={{
-							paddingTop: 12,
-							paddingBottom: 12,
-							display: 'flex',
-							alignItems: 'center',
-							justifyContent: 'space-between',
-							gap: 12,
-						}}
-					>
-						<button
-							onClick={onBack}
-							style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}
-						>
-							<ArrowLeft size={20} />
-						</button>
-						<span style={{ fontWeight: 700, color: streak > 0 ? '#fbbf24' : 'var(--text-muted)' }}>
-							🔥 {streak}
-							{bestStreak > 0 ? ` · best ${bestStreak}` : ''}
-						</span>
-					</div>
-				</header>
+    <div
+      className="page-shell"
+      style={{ display: 'flex', flexDirection: 'column', height: '100dvh' }}
+    >
+      <header className="page-header">
+        <div
+          className="page-inner"
+          style={{
+            paddingTop: 12,
+            paddingBottom: 12,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            maxWidth: '100%',
+          }}
+        >
+          <button
+            type="button"
+            onClick={onBack}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--primary)',
+              cursor: 'pointer',
+            }}
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <span
+            style={{
+              fontWeight: 700,
+              color: streak > 0 ? '#fbbf24' : 'var(--text-muted)',
+            }}
+          >
+            🔥 {streak}
+            {bestStreak > 0 ? ` · best ${bestStreak}` : ''}
+          </span>
+        </div>
+      </header>
 
-      <main
-        className="page-inner"
-        style={{ flex: 1, paddingTop: 16, paddingBottom: 'calc(22vh + 28px)' }}
-      >
-        {current && (
-          <>
-            <div
-              className={cardClass}
-              style={{
-                position: 'relative',
-                background: 'var(--card-front)',
-                borderRadius: 'var(--radius-card)',
-                padding: '16px 12px 20px',
-                marginBottom: 16,
-                boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
-                overflow: 'hidden',
-              }}
-            >
-              {toast && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 10,
-                    left: 0,
-                    right: 0,
-                    textAlign: 'center',
-                    fontWeight: 800,
-                    fontSize: 15,
-                    color: toast === 'correct' ? 'var(--success)' : 'var(--error)',
-                    transform: toastAnim ? 'translateY(-18px)' : 'translateY(0)',
-                    opacity: toastAnim ? 0 : 1,
-                    transition: 'transform 0.7s ease-out, opacity 0.7s ease-out',
-                    pointerEvents: 'none',
-                    zIndex: 2,
-                  }}
-                >
-                  {toast === 'correct' ? 'Correct' : 'Wrong'}
+      <div className="play-with-keypad">
+        <main className="play-main page-inner" style={{ paddingTop: 16 }}>
+          {current && (
+            <>
+              <div className={`task-card ${cardClass}`}>
+                {toast && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 10,
+                      left: 0,
+                      right: 0,
+                      textAlign: 'center',
+                      fontWeight: 800,
+                      fontSize: 15,
+                      color: toast === 'correct' ? 'var(--success)' : 'var(--error)',
+                      transform: toastAnim ? 'translateY(-18px)' : 'translateY(0)',
+                      opacity: toastAnim ? 0 : 1,
+                      transition: 'transform 0.7s ease-out, opacity 0.7s ease-out',
+                      pointerEvents: 'none',
+                      zIndex: 2,
+                    }}
+                  >
+                    {toast === 'correct' ? 'Correct' : 'Wrong'}
+                  </div>
+                )}
+                <div className="combo-diagram" style={{ position: 'relative' }}>
+                  <ComboDiagram family={current.family} chips={current.chips} size={220} />
                 </div>
-              )}
-              <ComboDiagram family={current.family} chips={current.chips} size={260} />
-            </div>
+              </div>
 
-            <input
-              type="text"
-              readOnly
-              inputMode="none"
-              value={answer}
-              placeholder="Total"
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                padding: '16px',
-                fontSize: 24,
-                fontWeight: 700,
-                textAlign: 'center',
-                borderRadius: 16,
-                border: '2px solid var(--border)',
-                background: 'rgba(255,255,255,0.05)',
-                color: 'white',
-                outline: 'none',
-              }}
+              <input
+                className="answer-input"
+                type="text"
+                readOnly
+                inputMode="none"
+                value={answer}
+                placeholder="Total"
+              />
+            </>
+          )}
+        </main>
+
+        <div className="keypad-dock">
+          <div className="keypad-dock-inner">
+            <NumericKeypad
+              disabled={locked}
+              onDigit={(d) => setAnswer((a) => a + d)}
+              onBackspace={() => setAnswer((a) => a.slice(0, -1))}
+              onSpace={() => {}}
+              onEnter={submit}
             />
-          </>
-        )}
-      </main>
-
-      <div className="keypad-dock">
-        <div className="keypad-dock-inner">
-          <NumericKeypad
-            disabled={locked}
-            onDigit={(d) => setAnswer((a) => a + d)}
-            onBackspace={() => setAnswer((a) => a.slice(0, -1))}
-            onSpace={() => {}}
-            onEnter={submit}
-          />
+          </div>
         </div>
       </div>
     </div>

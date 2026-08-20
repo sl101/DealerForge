@@ -135,8 +135,14 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
             }}
           >
             <button
+              type="button"
               onClick={onBack}
-              style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--primary)',
+                cursor: 'pointer',
+              }}
             >
               <ArrowLeft size={22} />
             </button>
@@ -171,7 +177,9 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
                   type="button"
                   onClick={() =>
                     setSelected((prev) => {
-                      if (prev.includes(m)) return prev.length === 1 ? prev : prev.filter((x) => x !== m);
+                      if (prev.includes(m)) {
+                        return prev.length === 1 ? prev : prev.filter((x) => x !== m);
+                      }
                       return [...prev, m];
                     })
                   }
@@ -180,7 +188,7 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
                     borderRadius: 12,
                     border: '1px solid var(--border)',
                     background: on ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
-                    color: on ? '#000' : 'var(--text)',
+                    color: on ? '#000' : 'var(--foreground)',
                     fontWeight: 700,
                     cursor: 'pointer',
                   }}
@@ -213,10 +221,17 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
   }
 
   const cardClass =
-    cardFlash === 'correct' ? 'pop card-glow-correct' : cardFlash === 'wrong' ? 'shake card-glow-wrong' : '';
+    cardFlash === 'correct'
+      ? 'pop card-glow-correct'
+      : cardFlash === 'wrong'
+      ? 'shake card-glow-wrong'
+      : '';
 
   return (
-    <div className="page-shell">
+    <div
+      className="page-shell"
+      style={{ display: 'flex', flexDirection: 'column', height: '100dvh' }}
+    >
       <header className="page-header">
         <div
           className="page-inner"
@@ -226,11 +241,18 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            maxWidth: '100%',
           }}
         >
           <button
+            type="button"
             onClick={onBack}
-            style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--primary)',
+              cursor: 'pointer',
+            }}
           >
             <ArrowLeft size={20} />
           </button>
@@ -241,91 +263,90 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
         </div>
       </header>
 
-      <main
-        className="page-inner"
-        style={{ flex: 1, paddingTop: 24, paddingBottom: 'calc(22vh + 28px)' }}
-      >
-        {current && (
-          <>
-            <div
-              className={cardClass}
-              style={{
-                position: 'relative',
-                background: 'var(--card-front)',
-                borderRadius: 'var(--radius-card)',
-                padding: '36px 18px',
-                textAlign: 'center',
-                marginBottom: 16,
-                boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
-                minHeight: 120,
-                boxSizing: 'border-box',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'hidden',
-              }}
-            >
-              {toast && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 12,
-                    left: 0,
-                    right: 0,
-                    textAlign: 'center',
-                    fontWeight: 800,
-                    fontSize: 15,
-                    letterSpacing: 0.5,
-                    color: toast === 'correct' ? 'var(--success)' : 'var(--error)',
-                    transform: toastAnim ? 'translateY(-18px)' : 'translateY(0)',
-                    opacity: toastAnim ? 0 : 1,
-                    transition: 'transform 0.7s ease-out, opacity 0.7s ease-out',
-                    pointerEvents: 'none',
-                  }}
-                >
-                  {toast === 'correct' ? 'Correct' : 'Wrong'}
+      <div className="play-with-keypad">
+        <main className="play-main page-inner" style={{ paddingTop: 24 }}>
+          {current && (
+            <>
+              <div
+                className={cardClass}
+                style={{
+                  position: 'relative',
+                  background: 'var(--card-front)',
+                  borderRadius: 'var(--radius-card)',
+                  padding: '36px 18px',
+                  textAlign: 'center',
+                  marginBottom: 16,
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+                  minHeight: 120,
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  overflow: 'hidden',
+                }}
+              >
+                {toast && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 12,
+                      left: 0,
+                      right: 0,
+                      textAlign: 'center',
+                      fontWeight: 800,
+                      fontSize: 15,
+                      letterSpacing: 0.5,
+                      color: toast === 'correct' ? 'var(--success)' : 'var(--error)',
+                      transform: toastAnim ? 'translateY(-18px)' : 'translateY(0)',
+                      opacity: toastAnim ? 0 : 1,
+                      transition: 'transform 0.7s ease-out, opacity 0.7s ease-out',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    {toast === 'correct' ? 'Correct' : 'Wrong'}
+                  </div>
+                )}
+
+                <div style={{ fontSize: 48, fontWeight: 800, color: '#0f172a' }}>
+                  {current.multiplier} × {current.factor}
                 </div>
-              )}
-
-              <div style={{ fontSize: 48, fontWeight: 800, color: '#0f172a' }}>
-                {current.multiplier} × {current.factor}
               </div>
-            </div>
 
-            <input
-              ref={inputRef}
-              type="text"
-              readOnly
-              inputMode="none"
-              value={answer}
-              placeholder="Answer"
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                padding: '16px',
-                fontSize: 24,
-                fontWeight: 700,
-                textAlign: 'center',
-                borderRadius: 16,
-                border: '2px solid var(--border)',
-                background: 'rgba(255,255,255,0.05)',
-                color: 'white',
-                outline: 'none',
-              }}
+              <input
+                ref={inputRef}
+                type="text"
+                readOnly
+                inputMode="none"
+                value={answer}
+                placeholder="Answer"
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  padding: '16px',
+                  fontSize: 24,
+                  fontWeight: 700,
+                  textAlign: 'center',
+                  borderRadius: 16,
+                  border: '2px solid var(--border)',
+                  background: 'rgba(255,255,255,0.05)',
+                  color: 'white',
+                  outline: 'none',
+                }}
+              />
+            </>
+          )}
+        </main>
+
+        <div className="keypad-dock">
+          <div className="keypad-dock-inner">
+            <NumericKeypad
+              disabled={locked}
+              onDigit={(d) => setAnswer((a) => a + d)}
+              onBackspace={() => setAnswer((a) => a.slice(0, -1))}
+              onSpace={() => {}}
+              onEnter={submit}
             />
-          </>
-        )}
-      </main>
-
-      <div className="keypad-dock">
-        <div className="keypad-dock-inner">
-          <NumericKeypad
-            disabled={locked}
-            onDigit={(d) => setAnswer((a) => a + d)}
-            onBackspace={() => setAnswer((a) => a.slice(0, -1))}
-            onSpace={() => {}}
-            onEnter={submit}
-          />
+          </div>
         </div>
       </div>
     </div>

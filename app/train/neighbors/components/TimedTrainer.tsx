@@ -42,7 +42,7 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
   const [shake, setShake] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     setStats(loadStats());
@@ -73,7 +73,7 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          clearInterval(timerRef.current!);
+          if (timerRef.current) clearInterval(timerRef.current);
           setIsRunning(false);
           return 0;
         }
@@ -195,7 +195,6 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
     setHintsLeft((prev) => prev - 1);
 
     const merged = Array.from(new Set([...normalizeAnswer(userInput), ...newRevealed]));
-    // trailing space so next digit starts a new number
     setUserInput(merged.join(' ') + ' ');
   };
 
@@ -214,8 +213,14 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
             }}
           >
             <button
+              type="button"
               onClick={onBack}
-              style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--primary)',
+                cursor: 'pointer',
+              }}
             >
               <ArrowLeft size={22} />
             </button>
@@ -256,15 +261,24 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
           )}
 
           <div className="segmented" style={{ maxWidth: 200, margin: '0 auto 32px' }}>
-            <button className={depth === '1/1' ? 'active' : ''} onClick={() => setDepth('1/1')}>
+            <button
+              type="button"
+              className={depth === '1/1' ? 'active' : ''}
+              onClick={() => setDepth('1/1')}
+            >
               1/1
             </button>
-            <button className={depth === '2/2' ? 'active' : ''} onClick={() => setDepth('2/2')}>
+            <button
+              type="button"
+              className={depth === '2/2' ? 'active' : ''}
+              onClick={() => setDepth('2/2')}
+            >
               2/2
             </button>
           </div>
 
           <button
+            type="button"
             onClick={startSession}
             style={{
               background: 'var(--primary)',
@@ -291,7 +305,14 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
         style={{ alignItems: 'center', justifyContent: 'center', padding: 20 }}
       >
         {isNewRecord && (
-          <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--primary)', marginBottom: 12 }}>
+          <div
+            style={{
+              fontSize: 22,
+              fontWeight: 700,
+              color: 'var(--primary)',
+              marginBottom: 12,
+            }}
+          >
             New Record!
           </div>
         )}
@@ -305,6 +326,7 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
         </p>
 
         <button
+          type="button"
           onClick={startSession}
           style={{
             background: 'var(--primary)',
@@ -320,8 +342,14 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
           Play again
         </button>
         <button
+          type="button"
           onClick={onBack}
-          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--text-muted)',
+            cursor: 'pointer',
+          }}
         >
           Back to menu
         </button>
@@ -339,7 +367,10 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
     .join(' ');
 
   return (
-    <div className="page-shell">
+    <div
+      className="page-shell"
+      style={{ display: 'flex', flexDirection: 'column', height: '100dvh' }}
+    >
       <header className="page-header">
         <div
           className="page-inner"
@@ -349,11 +380,18 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            maxWidth: '100%',
           }}
         >
           <button
+            type="button"
             onClick={onBack}
-            style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--primary)',
+              cursor: 'pointer',
+            }}
           >
             <ArrowLeft size={20} />
           </button>
@@ -376,102 +414,112 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
         </div>
       </header>
 
-      <main
-        className="page-inner"
-        style={{ flex: 1, paddingTop: 16, paddingBottom: 'calc(22vh + 28px)' }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
-          <button
-            onClick={useHint}
-            disabled={hintsLeft <= 0 || !!feedback}
-            style={{
-              padding: '8px 14px',
-              borderRadius: 14,
-              border: '1px solid var(--border)',
-              background: hintsLeft > 0 ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)',
-              color: hintsLeft > 0 ? 'var(--text)' : 'var(--text-muted)',
-              cursor: hintsLeft > 0 ? 'pointer' : 'default',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              fontWeight: 600,
-              fontSize: 13,
-            }}
-          >
-            <Lightbulb size={15} /> Hint · {hintsLeft}
-          </button>
-        </div>
-
-        <div
-          className={cardClass}
-          style={{
-            width: '100%',
-            boxSizing: 'border-box',
-            background: 'var(--card-front)',
-            borderRadius: 'var(--radius-card)',
-            padding: '32px 18px',
-            textAlign: 'center',
-            marginBottom: 16,
-            boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
-            transition: 'box-shadow 0.2s',
-            minHeight: 140,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <div style={{ fontSize: 13, color: 'var(--card-text-muted)', marginBottom: 12 }}>
-            {depth} • Type the neighbors
-          </div>
+      <div className="play-with-keypad">
+        <main className="play-main page-inner" style={{ paddingTop: 12 }}>
+          {/* Label + Hint on one row — above card */}
           <div
             style={{
-              fontSize: 64,
-              fontWeight: 800,
-              color: getNumberColor(currentCard.number),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              marginBottom: 10,
             }}
           >
-            {currentCard.number}
+            <span
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: 'var(--text-muted)',
+              }}
+            >
+              {depth} · Type the neighbors
+            </span>
+            <button
+              type="button"
+              onClick={useHint}
+              disabled={hintsLeft <= 0 || !!feedback}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 14,
+                border: '1px solid var(--border)',
+                background:
+                  hintsLeft > 0 ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)',
+                color: hintsLeft > 0 ? 'var(--text)' : 'var(--text-muted)',
+                cursor: hintsLeft > 0 ? 'pointer' : 'default',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontWeight: 600,
+                fontSize: 13,
+                flexShrink: 0,
+              }}
+            >
+              <Lightbulb size={15} /> Hint · {hintsLeft}
+            </button>
           </div>
-        </div>
 
-        <input
-          ref={inputRef}
-          type="text"
-          readOnly
-          inputMode="none"
-          value={userInput}
-          placeholder="e.g. 10 24"
-          style={{
-            width: '100%',
-            boxSizing: 'border-box',
-            padding: '16px 18px',
-            fontSize: 22,
-            fontWeight: 600,
-            textAlign: 'center',
-            borderRadius: 16,
-            border:
-              feedback === 'wrong'
-                ? '2px solid var(--error)'
-                : feedback === 'correct'
-                ? '2px solid var(--success)'
-                : '2px solid var(--border)',
-            background: 'rgba(255,255,255,0.05)',
-            color: 'white',
-            outline: 'none',
-          }}
-        />
-      </main>
+          <div
+            className={cardClass}
+            style={{
+              width: '100%',
+              boxSizing: 'border-box',
+              background: 'var(--card-front)',
+              borderRadius: 'var(--radius-card)',
+              padding: '20px 16px',
+              textAlign: 'center',
+              marginBottom: 12,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+              transition: 'box-shadow 0.2s',
+              minHeight: 96,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <div
+              style={{
+                fontSize: 56,
+                fontWeight: 800,
+                lineHeight: 1,
+                color: getNumberColor(currentCard.number),
+              }}
+            >
+              {currentCard.number}
+            </div>
+          </div>
 
-      <div className="keypad-dock">
-        <div className="keypad-dock-inner">
-          <NumericKeypad
-            disabled={feedback === 'correct'}
-            onDigit={(d) => setUserInput((prev) => prev + d)}
-            onBackspace={() => setUserInput((prev) => prev.slice(0, -1))}
-            onSpace={() => setUserInput((prev) => prev + ' ')}
-            onEnter={handleSubmit}
+          <input
+            ref={inputRef}
+            type="text"
+            readOnly
+            inputMode="none"
+            value={userInput}
+            placeholder="e.g. 10 24"
+            className="answer-input"
+            style={{
+              maxWidth: '100%',
+              border:
+                feedback === 'wrong'
+                  ? '2px solid var(--error)'
+                  : feedback === 'correct'
+                  ? '2px solid var(--success)'
+                  : '2px solid var(--border)',
+            }}
           />
+        </main>
+
+        <div className="keypad-dock">
+          <div className="keypad-dock-inner">
+            <NumericKeypad
+              disabled={feedback === 'correct'}
+              onDigit={(d) => setUserInput((prev) => prev + d)}
+              onBackspace={() => setUserInput((prev) => prev.slice(0, -1))}
+              onSpace={() => setUserInput((prev) => prev + ' ')}
+              onEnter={handleSubmit}
+            />
+          </div>
         </div>
       </div>
     </div>

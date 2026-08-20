@@ -20,8 +20,9 @@ interface Snapshot {
   flipped: boolean;
 }
 
-const CARD_MIN_HEIGHT = 340;
 const SWIPE_THRESHOLD = 80;
+/** Portrait card height (as before) */
+const CARD_HEIGHT_PORTRAIT = 340;
 
 export default function StudyTrainer({ onBack }: StudyTrainerProps) {
   const [deck, setDeck] = useState<StandardCombo[]>([]);
@@ -131,7 +132,6 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
       setDragging(false);
       return;
     }
-    // tap → flip if little movement
     if (Math.abs(dx) < 12 && Math.abs(e.clientY - startY.current) < 12) {
       setFlipped((f) => !f);
     }
@@ -146,8 +146,14 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
         <header className="page-header">
           <div className="page-inner" style={{ paddingTop: 14, paddingBottom: 14 }}>
             <button
+              type="button"
               onClick={onBack}
-              style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--primary)',
+                cursor: 'pointer',
+              }}
             >
               <ArrowLeft size={22} />
             </button>
@@ -166,7 +172,7 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
       : 'transparent';
 
   return (
-    <div className="page-shell">
+    <div className="page-shell" style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
       <header className="page-header">
         <div
           className="page-inner"
@@ -176,43 +182,57 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
             display: 'flex',
             alignItems: 'center',
             gap: 10,
+            maxWidth: '100%',
           }}
         >
           <button
+            type="button"
             onClick={onBack}
-            style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--primary)',
+              cursor: 'pointer',
+            }}
           >
             <ArrowLeft size={20} />
           </button>
           <span style={{ fontSize: 14, color: 'var(--text-muted)', flex: 1 }}>
-            Study 
+            Study
+            {knownCount > 0 ? ` · ${knownCount}/${total} known` : ''}
           </span>
         </div>
       </header>
 
-      <main className="page-inner" style={{ flex: 1, paddingTop: 16, paddingBottom: 40 }}>
+      <main
+        className="page-inner"
+        style={{
+          flex: 1,
+          paddingTop: 16,
+          paddingBottom: 24,
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
         <div
+          className="study-card task-card"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
           style={{
+            position: 'relative',
             width: '100%',
-            background: 'var(--card-front)',
-            borderRadius: 'var(--radius-card)',
-            padding: '16px 14px',
-            marginBottom: 16,
-            boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
-            minHeight: CARD_MIN_HEIGHT,
-            height: CARD_MIN_HEIGHT,
+            height: CARD_HEIGHT_PORTRAIT,
+            minHeight: CARD_HEIGHT_PORTRAIT,
             boxSizing: 'border-box',
+            marginBottom: 16,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             transform: `translateX(${dragX}px) rotate(${rot}deg)`,
             transition: dragging ? 'none' : 'transform 0.2s ease-out',
-            position: 'relative',
             overflow: 'hidden',
             touchAction: 'none',
             userSelect: 'none',
@@ -227,10 +247,19 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
               pointerEvents: 'none',
             }}
           />
+
           {!flipped ? (
-            <ComboDiagram family={current.family} chips={current.chips} size={240} />
+            <div className="combo-diagram">
+              <ComboDiagram family={current.family} chips={current.chips} size={240} />
+            </div>
           ) : (
-            <div style={{ fontSize: 56, fontWeight: 800, color: '#0f172a' }}>
+            <div
+              style={{
+                fontSize: 56,
+                fontWeight: 800,
+                color: '#0f172a',
+              }}
+            >
               {current.answer}
             </div>
           )}
