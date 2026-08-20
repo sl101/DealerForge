@@ -6,6 +6,9 @@ import { ArrowLeft, Trophy, Timer } from 'lucide-react';
 import { generateRouletteTask, RouletteTask, TaskOptions } from '@/lib/roulette';
 import NumericKeypad from '@/components/ui/NumericKeypad';
 import AuthModal from '@/components/AuthModal';
+import ComboDiagram from '@/app/train/standart-combos/components/ComboDiagram';
+import { familyFromNumber } from '@/lib/standart-combos/familyFromNumber';
+import { betsToStacks } from '@/lib/roulette/betToChip';
 
 type Level = 1 | 2 | 3;
 
@@ -229,38 +232,50 @@ export default function PayoutTrainerPage() {
       >
         {task && (
           <>
-            <div
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                background: 'var(--card-front)',
-                borderRadius: 'var(--radius-card)',
-                padding: '24px 18px',
-                marginBottom: 20,
-                boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
-                color: '#0f172a',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 15,
-                  fontWeight: 700,
-                  marginBottom: 14,
-                  textAlign: 'center',
-                }}
-              >
-                Winning number:{' '}
-                <span style={{ color: 'var(--number-red, #dc2626)' }}>{task.winningNumber}</span>
-              </div>
+						<div
+							style={{
+								width: '100%',
+								boxSizing: 'border-box',
+								background: 'var(--card-front)',
+								borderRadius: 'var(--radius-card)',
+								padding: '24px 18px',
+								marginBottom: 20,
+								boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+								color: '#0f172a',
+							}}
+						>
+							<div
+								style={{
+									fontSize: 15,
+									fontWeight: 700,
+									marginBottom: 14,
+									textAlign: 'center',
+								}}
+							>
+								Winning number:{' '}
+								<span style={{ color: 'var(--number-red, #dc2626)' }}>{task.winningNumber}</span>
+							</div>
 
-              <div style={{ fontSize: 14, lineHeight: 1.7, textAlign: 'center' }}>
-                {task.bets?.map((b, i) => (
-                  <div key={i}>
-                    {b.count} × {b.type} on {b.positions}
-                  </div>
-                ))}
-              </div>
-            </div>
+							<div style={{ fontSize: 14, lineHeight: 1.7, textAlign: 'center', marginBottom: 16 }}>
+								{task.bets?.map((b, i) => (
+									<div key={i}>
+										{b.count} × {b.type} on {b.positions}
+									</div>
+								))}
+							</div>
+
+							{/* Diagram */}
+							<div style={{ marginTop: 8 }}>
+								<ComboDiagram
+									family={familyFromNumber(task.winningNumber)}
+									chips={betsToStacks(task.winningNumber, task.bets || []).map((s) => ({
+										pos: s.pos,
+										label: s.label,
+									}))}
+									size={260}
+								/>
+							</div>
+						</div>
 
             <input
               ref={inputRef}

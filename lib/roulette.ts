@@ -1,9 +1,15 @@
+export interface RouletteBet {
+  type: 'Straight' | 'Split' | 'Corner' | 'Street' | 'SixLine';
+  positions: string;
+  count: number;
+}
+
 export interface RouletteTask {
   winningNumber: number;
   description: string;
   correctAnswer: number;
   imagePrompt: string;
-  bets: Array<{ type: string; positions: string; count: number }>;
+  bets: RouletteBet[];
 }
 
 export interface TaskOptions {
@@ -11,7 +17,6 @@ export interface TaskOptions {
   maxBets?: number;
   minChips?: number;
   maxChips?: number;
-  /** Rare high stacks (level 3) */
   rareMaxChips?: number;
   rareChance?: number;
 }
@@ -28,11 +33,89 @@ function randomInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function randomChips(minChips: number, maxChips: number, rareMax?: number, rareChance = 0) {
+function randomChips(
+  minChips: number,
+  maxChips: number,
+  rareMax?: number,
+  rareChance = 0
+) {
   if (rareMax && rareChance > 0 && Math.random() < rareChance) {
     return randomInt(maxChips + 1, rareMax);
   }
   return randomInt(minChips, maxChips);
+}
+
+/** All valid corners that include number n (American layout). */
+function cornersFor(n: number): string[] {
+  if (n === 0) return ['0-1-2-3'];
+  if (n === 1) return ['0-1-2-3', '1-2-4-5'];
+  if (n === 2) return ['0-1-2-3', '1-2-4-5', '2-3-5-6'];
+  if (n === 3) return ['0-1-2-3', '2-3-5-6'];
+
+  if (n === 34) return ['31-32-34-35'];
+  if (n === 35) return ['31-32-34-35', '32-33-35-36'];
+  if (n === 36) return ['32-33-35-36']; // NOT 33-34-35-36
+
+  const col = (n - 1) % 3; // 0 left, 1 mid, 2 right
+  const row = Math.floor((n - 1) / 3); // 0..11
+  const at = (r: number, c: number) => r * 3 + c + 1;
+  const pack = (a: number, b: number, c: number, d: number) =>
+    [a, b, c, d].sort((x, y) => x - y).join('-');
+
+  const list: string[] = [];
+
+  // corner "above-left" of n (NW)
+  if (col > 0 && row > 0) {
+    list.push(pack(at(row - 1, col - 1), at(row - 1, col), at(row, col - 1), n));
+  }
+  // above-right (NE)
+  if (col < 2 && row > 0) {
+    list.push(pack(at(row - 1, col), at(row - 1, col + 1), n, at(row, col + 1)));
+  }
+  // below-left (SW)
+  if (col > 0 && row < 11) {
+    list.push(pack(at(row, col - 1), n, at(row + 1, col - 1), at(row + 1, col)));
+  }
+  // below-right (SE)
+  if (col < 2 && row < 11) {
+    list.push(pack(n, at(row, col + 1), at(row + 1, col), at(row + 1, col + 1)));
+  }
+
+  return list;
+}
+
+function splitsFor(n: number): string[] {
+  if (n === 0) return ['0-1', '0-2', '0-3'];
+  const list: string[] = [];
+  const col = (n - 1) % 3;
+  if (col !== 0) list.push(`${n - 1}-${n}`);
+  if (col !== 2) list.push(`${n}-${n + 1}`);
+  if (n > 3) list.push(`${n - 3}-${n}`);
+  if (n < 34) list.push(`${n}-${n + 3}`);
+  if (n === 1) list.push('0-1');
+  if (n === 2) list.push('0-2');
+  if (n === 3) list.push('0-3');
+  return list;
+}
+
+function streetsFor(n: number): string[] {
+  if (n === 0) return ['0-1-2', '0-2-3'];
+  if (n === 1) return ['0-1-2', '1-2-3'];
+  if (n === 2) return ['0-1-2', '0-2-3', '1-2-3'];
+  if (n === 3) return ['0-2-3', '1-2-3'];
+  const rowStart = Math.floor((n - 1) / 3) * 3 + 1;
+  return [`${rowStart}-${rowStart + 1}-${rowStart + 2}`];
+}
+
+function sixLinesFor(n: number): string[] {
+  if (n === 0 || n <= 3) return ['1-6'];
+  if (n >= 34) return ['31-36'];
+  const rowStart = Math.floor((n - 1) / 3) * 3 + 1;
+  const list: string[] = [];
+  if (rowStart > 1) list.push(`${rowStart - 3}-${rowStart + 2}`);
+  if (rowStart + 5 <= 36) list.push(`${rowStart}-${rowStart + 5}`);
+  if (list.length === 0) return ['31-36'];
+  return list;
 }
 
 export function generateRouletteTask(options: TaskOptions = {}): RouletteTask {
@@ -45,18 +128,16 @@ export function generateRouletteTask(options: TaskOptions = {}): RouletteTask {
     rareChance = 0,
   } = options;
 
-  // Slight bias toward 0–3
   const winningNumber =
     Math.random() < 0.18
       ? Math.floor(Math.random() * 4)
       : Math.floor(Math.random() * 37);
 
-  const bets: Array<{ type: string; positions: string; count: number }> = [];
+  const bets: RouletteBet[] = [];
   const usedPositions = new Set<string>();
 
   const numBets = randomInt(minBets, maxBets);
 
-  // 1. Straight always first
   bets.push({
     type: 'Straight',
     positions: winningNumber.toString(),
@@ -64,130 +145,46 @@ export function generateRouletteTask(options: TaskOptions = {}): RouletteTask {
   });
   usedPositions.add(winningNumber.toString());
 
-  const betTypes = ['Split', 'Corner', 'Street', 'SixLine'];
-
-  // Shuffle types so higher levels get variety
+  const betTypes: RouletteBet['type'][] = ['Split', 'Corner', 'Street', 'SixLine'];
   const shuffledTypes = [...betTypes].sort(() => Math.random() - 0.5);
 
   let attempts = 0;
-  while (bets.length < numBets && attempts < 40) {
+  while (bets.length < numBets && attempts < 50) {
     attempts += 1;
     const type = shuffledTypes[(bets.length - 1) % shuffledTypes.length];
-    let positions = '';
     const count = randomChips(minChips, maxChips, rareMaxChips, rareChance);
 
-    if (type === 'Split') {
-      const possible: string[] = [];
-      if (winningNumber === 0) {
-        possible.push('0-1', '0-2', '0-3');
-      } else {
-        if (winningNumber % 3 !== 1) possible.push(`${winningNumber - 1}-${winningNumber}`);
-        if (winningNumber % 3 !== 0) possible.push(`${winningNumber}-${winningNumber + 1}`);
-        if (winningNumber > 3) possible.push(`${winningNumber - 3}-${winningNumber}`);
-        if (winningNumber < 34) possible.push(`${winningNumber}-${winningNumber + 3}`);
-        if (winningNumber === 1) possible.push('0-1');
-        if (winningNumber === 2) possible.push('0-2');
-        if (winningNumber === 3) possible.push('0-3');
-      }
-      if (possible.length > 0) {
-        positions = possible[Math.floor(Math.random() * possible.length)];
-      }
-    } else if (type === 'Corner') {
-      if (winningNumber === 0) {
-        positions = '0-1-2-3';
-      } else if (winningNumber === 1) {
-        positions = Math.random() > 0.5 ? '0-1-2-3' : '1-2-4-5';
-      } else if (winningNumber === 2) {
-        const opts = ['0-1-2-3', '1-2-4-5', '2-3-5-6'];
-        positions = opts[Math.floor(Math.random() * opts.length)];
-      } else if (winningNumber === 3) {
-        positions = Math.random() > 0.5 ? '0-1-2-3' : '2-3-5-6';
-      } else if (winningNumber === 34) {
-        positions = '31-32-34-35';
-      } else if (winningNumber === 35) {
-        const opts = ['31-32-34-35', '32-33-35-36'];
-        positions = opts[Math.floor(Math.random() * opts.length)];
-      } else if (winningNumber === 36) {
-        positions = '33-34-35-36';
-      } else {
-        const col = (winningNumber - 1) % 3;
-        const rowStart = Math.floor((winningNumber - 1) / 3) * 3 + 1;
-        if (col === 0) {
-          positions = `${rowStart}-${rowStart + 1}-${rowStart + 3}-${rowStart + 4}`;
-        } else if (col === 1) {
-          // middle: can be left or right corner
-          positions =
-            Math.random() > 0.5
-              ? `${rowStart}-${rowStart + 1}-${rowStart + 3}-${rowStart + 4}`
-              : `${rowStart + 1}-${rowStart + 2}-${rowStart + 4}-${rowStart + 5}`;
-        } else {
-          positions = `${rowStart + 1}-${rowStart + 2}-${rowStart + 4}-${rowStart + 5}`;
-        }
-      }
-    } else if (type === 'Street') {
-      if (winningNumber === 0) {
-        positions = Math.random() > 0.5 ? '0-1-2' : '0-2-3';
-      } else if (winningNumber === 1) {
-        positions = Math.random() > 0.5 ? '0-1-2' : '1-2-3';
-      } else if (winningNumber === 2) {
-        const streets = ['0-1-2', '0-2-3', '1-2-3'];
-        positions = streets[Math.floor(Math.random() * streets.length)];
-      } else if (winningNumber === 3) {
-        positions = Math.random() > 0.5 ? '0-2-3' : '1-2-3';
-      } else {
-        const rowStart = Math.floor((winningNumber - 1) / 3) * 3 + 1;
-        positions = `${rowStart}-${rowStart + 1}-${rowStart + 2}`;
-      }
-    } else if (type === 'SixLine') {
-      if (winningNumber <= 3) {
-        positions = '1-6';
-      } else if (winningNumber >= 34) {
-        positions = '31-36';
-      } else {
-        const rowStart = Math.floor((winningNumber - 1) / 3) * 3 + 1;
-        if (rowStart <= 1) {
-          positions = '1-6';
-        } else if (rowStart >= 34) {
-          positions = '31-36';
-        } else {
-          positions =
-            Math.random() > 0.5
-              ? `${rowStart - 3}-${rowStart + 2}`
-              : `${rowStart}-${rowStart + 5}`;
-        }
-      }
-    }
+    let candidates: string[] = [];
+    if (type === 'Split') candidates = splitsFor(winningNumber);
+    else if (type === 'Corner') candidates = cornersFor(winningNumber);
+    else if (type === 'Street') candidates = streetsFor(winningNumber);
+    else if (type === 'SixLine') candidates = sixLinesFor(winningNumber);
 
-    if (positions && !usedPositions.has(positions)) {
-      bets.push({ type, positions, count });
-      usedPositions.add(positions);
-    }
+    const free = candidates.filter((p) => p && !usedPositions.has(p));
+    if (free.length === 0) continue;
+
+    const positions = free[Math.floor(Math.random() * free.length)];
+    bets.push({ type, positions, count });
+    usedPositions.add(positions);
   }
 
-  let totalPayout = 0;
-  const descriptionParts: string[] = [];
-
-  // Keep order: Straight, Split, Corner, Street, SixLine
   const order = ['Straight', 'Split', 'Corner', 'Street', 'SixLine'];
   const sortedBets = [...bets].sort(
     (a, b) => order.indexOf(a.type) - order.indexOf(b.type)
   );
 
+  let totalPayout = 0;
+  const descriptionParts: string[] = [];
   sortedBets.forEach((bet) => {
-    const multiplier = payoutMultipliers[bet.type] || 1;
-    totalPayout += bet.count * multiplier;
+    totalPayout += bet.count * (payoutMultipliers[bet.type] || 1);
     descriptionParts.push(`${bet.count} × ${bet.type} on ${bet.positions}`);
   });
 
-  const description = `Winning number: **${winningNumber}**\n\n${descriptionParts.join('\n')}`;
-
-  const imagePrompt = `Simple clean educational diagram of roulette table section around number ${winningNumber}.`;
-
   return {
     winningNumber,
-    description,
+    description: `Winning number: **${winningNumber}**\n\n${descriptionParts.join('\n')}`,
     correctAnswer: totalPayout,
-    imagePrompt,
+    imagePrompt: `Roulette section around ${winningNumber}`,
     bets: sortedBets,
   };
 }

@@ -16,9 +16,9 @@ export default function Home() {
       gradient: 'linear-gradient(135deg, rgba(103, 232, 249, 0.18), rgba(59, 130, 246, 0.12))',
     },
     {
-      title: 'Standard Combinations',
+      title: 'Standart Combinations',
       icon: <Grid3X3 size={32} style={{ color: '#67e8f9' }} />,
-      path: '/train/combinations',
+      path: '/train/standart-combos',
       gradient: 'linear-gradient(135deg, rgba(165, 180, 252, 0.18), rgba(129, 140, 248, 0.12))',
     },
     {
