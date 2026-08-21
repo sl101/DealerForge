@@ -46,7 +46,7 @@ function randomChips(
 }
 
 /** All valid corners that include number n (American layout). */
-function cornersFor(n: number): string[] {
+export function cornersFor(n: number): string[] {
   if (n === 0) return ['0-1-2-3'];
   if (n === 1) return ['0-1-2-3', '1-2-4-5'];
   if (n === 2) return ['0-1-2-3', '1-2-4-5', '2-3-5-6'];
@@ -54,29 +54,25 @@ function cornersFor(n: number): string[] {
 
   if (n === 34) return ['31-32-34-35'];
   if (n === 35) return ['31-32-34-35', '32-33-35-36'];
-  if (n === 36) return ['32-33-35-36']; // NOT 33-34-35-36
+  if (n === 36) return ['32-33-35-36'];
 
-  const col = (n - 1) % 3; // 0 left, 1 mid, 2 right
-  const row = Math.floor((n - 1) / 3); // 0..11
+  const col = (n - 1) % 3;
+  const row = Math.floor((n - 1) / 3);
   const at = (r: number, c: number) => r * 3 + c + 1;
   const pack = (a: number, b: number, c: number, d: number) =>
     [a, b, c, d].sort((x, y) => x - y).join('-');
 
   const list: string[] = [];
 
-  // corner "above-left" of n (NW)
   if (col > 0 && row > 0) {
     list.push(pack(at(row - 1, col - 1), at(row - 1, col), at(row, col - 1), n));
   }
-  // above-right (NE)
   if (col < 2 && row > 0) {
     list.push(pack(at(row - 1, col), at(row - 1, col + 1), n, at(row, col + 1)));
   }
-  // below-left (SW)
   if (col > 0 && row < 11) {
     list.push(pack(at(row, col - 1), n, at(row + 1, col - 1), at(row + 1, col)));
   }
-  // below-right (SE)
   if (col < 2 && row < 11) {
     list.push(pack(n, at(row, col + 1), at(row + 1, col), at(row + 1, col + 1)));
   }
@@ -84,7 +80,7 @@ function cornersFor(n: number): string[] {
   return list;
 }
 
-function splitsFor(n: number): string[] {
+export function splitsFor(n: number): string[] {
   if (n === 0) return ['0-1', '0-2', '0-3'];
   const list: string[] = [];
   const col = (n - 1) % 3;
@@ -98,7 +94,7 @@ function splitsFor(n: number): string[] {
   return list;
 }
 
-function streetsFor(n: number): string[] {
+export function streetsFor(n: number): string[] {
   if (n === 0) return ['0-1-2', '0-2-3'];
   if (n === 1) return ['0-1-2', '1-2-3'];
   if (n === 2) return ['0-1-2', '0-2-3', '1-2-3'];
@@ -107,8 +103,8 @@ function streetsFor(n: number): string[] {
   return [`${rowStart}-${rowStart + 1}-${rowStart + 2}`];
 }
 
-function sixLinesFor(n: number): string[] {
-  if (n === 0) return []; // zero has no six-line
+export function sixLinesFor(n: number): string[] {
+  if (n === 0) return [];
   if (n <= 3) return ['1-6'];
   if (n >= 34) return ['31-36'];
   const rowStart = Math.floor((n - 1) / 3) * 3 + 1;
@@ -116,6 +112,21 @@ function sixLinesFor(n: number): string[] {
   if (rowStart > 1) list.push(`${rowStart - 3}-${rowStart + 2}`);
   if (rowStart + 5 <= 36) list.push(`${rowStart}-${rowStart + 5}`);
   return list;
+}
+
+/** Every inside bet that includes n, count = 1 each (for Verify mode). */
+export function allBetsForNumber(n: number): RouletteBet[] {
+  const bets: RouletteBet[] = [];
+  bets.push({ type: 'Straight', positions: String(n), count: 1 });
+  for (const p of splitsFor(n)) bets.push({ type: 'Split', positions: p, count: 1 });
+  for (const p of cornersFor(n)) bets.push({ type: 'Corner', positions: p, count: 1 });
+  for (const p of streetsFor(n)) bets.push({ type: 'Street', positions: p, count: 1 });
+  for (const p of sixLinesFor(n)) bets.push({ type: 'SixLine', positions: p, count: 1 });
+  return bets;
+}
+
+export function totalForBets(bets: RouletteBet[]): number {
+  return bets.reduce((sum, b) => sum + b.count * (payoutMultipliers[b.type] || 1), 0);
 }
 
 export function generateRouletteTask(options: TaskOptions = {}): RouletteTask {
@@ -187,4 +198,4 @@ export function generateRouletteTask(options: TaskOptions = {}): RouletteTask {
     imagePrompt: `Roulette section around ${winningNumber}`,
     bets: sortedBets,
   };
-}
+}	

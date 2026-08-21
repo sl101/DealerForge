@@ -12,7 +12,6 @@ interface ComboDiagramProps {
   size?: number;
 }
 
-/** Square cell size in viewBox units (0..100). Larger = bigger grid. */
 const CELL = 26;
 const GRID = CELL * 3;
 const OX = (100 - GRID) / 2;
@@ -34,11 +33,6 @@ function cornerPt(colLine: number, rowLine: number) {
   return { x: OX + CELL * colLine, y: OY + CELL * rowLine };
 }
 
-/**
- * Focus cell at (focusCol, focusRow) inside 3×3.
- * left → (0,1), center → (1,1), right → (2,1)
- * bottom34/35/36 → (0|1|2, 2)
- */
 function buildAnchorsAtFocus(
   focusCol: 0 | 1 | 2,
   focusRow: 0 | 1 | 2
@@ -55,7 +49,6 @@ function buildAnchorsAtFocus(
     NE: cornerPt(c + 1, r),
     SW: cornerPt(c, r + 1),
     SE: cornerPt(c + 1, r + 1),
-    // street / six-line on LEFT edge of diagram (training convention)
     street: { x: OX, y: OY + CELL * (r + 0.5) },
     six_N: { x: OX, y: OY + CELL * r },
     six_S: { x: OX, y: OY + CELL * (r + 1) },
@@ -69,7 +62,7 @@ const BOTTOM34_ANCHORS = buildAnchorsAtFocus(0, 2);
 const BOTTOM35_ANCHORS = buildAnchorsAtFocus(1, 2);
 const BOTTOM36_ANCHORS = buildAnchorsAtFocus(2, 2);
 
-/* ---------- Zero: 0 band + row 1-2-3 (square cells) ---------- */
+/* Zero: 0 band + row 1-2-3 */
 const Z_L = OX;
 const Z_TOP = OY + CELL * 0.5;
 const Z_DIV = Z_TOP + CELL;
@@ -89,7 +82,7 @@ const ZERO_ANCHORS: Partial<Record<ChipPos, { x: number; y: number }>> = {
   Z_street_023: { x: Z_COL2, y: Z_DIV },
 };
 
-/* ---------- n1/n2/n3: 0 + 1-2-3 + 4-5-6 ---------- */
+/* n1/n2/n3: 0 + 1-2-3 + 4-5-6 */
 const N_L = OX;
 const N_TOP = OY;
 const N_DIV0 = N_TOP + CELL;
@@ -106,19 +99,29 @@ function nFocusCenter(which: 1 | 2 | 3) {
   return { x, y };
 }
 
+/**
+ * Corners relative to focus cell (1 / 2 / 3), NOT the outer table edge.
+ * n3 SW = junction 2-3-5-6 → (N_C2, N_DIV1) — must NOT equal six_S at (N_L, N_DIV1).
+ */
 function buildNAnchors(which: 1 | 2 | 3): Partial<Record<ChipPos, { x: number; y: number }>> {
   const C = nFocusCenter(which);
   const yMid = C.y;
+
+  // Vertical edges of focus cell
+  const leftLine = which === 1 ? N_L : which === 2 ? N_C1 : N_C2;
+  const rightLine = which === 1 ? N_C1 : which === 2 ? N_C2 : N_R;
+
   return {
     C,
     N: { x: C.x, y: N_DIV0 },
     S: { x: C.x, y: N_DIV1 },
-    W: { x: which === 1 ? N_L : which === 2 ? N_C1 : N_C2, y: yMid },
-    E: { x: which === 1 ? N_C1 : which === 2 ? N_C2 : N_R, y: yMid },
-    NW: { x: which === 2 ? N_C1 : N_L, y: N_DIV0 },
-    NE: { x: which === 2 ? N_C2 : N_R, y: N_DIV0 },
-    SW: { x: which === 2 ? N_C1 : N_L, y: N_DIV1 },
-    SE: { x: which === 2 ? N_C2 : N_R, y: N_DIV1 },
+    W: { x: leftLine, y: yMid },
+    E: { x: rightLine, y: yMid },
+    NW: { x: leftLine, y: N_DIV0 },
+    NE: { x: rightLine, y: N_DIV0 },
+    SW: { x: leftLine, y: N_DIV1 },
+    SE: { x: rightLine, y: N_DIV1 },
+    // outer left edge (street / six-line convention)
     street: { x: N_L, y: yMid },
     six_N: { x: N_L, y: N_DIV0 },
     six_S: { x: N_L, y: N_DIV1 },
@@ -176,7 +179,6 @@ function Chip({
   y: number;
   label?: string | number;
 }) {
-  // Radius ~18% of cell — readable, not glued together
   const r = label != null ? CELL * 0.2 : CELL * 0.16;
   const fontSize =
     label != null && String(label).length > 2 ? CELL * 0.16 : CELL * 0.2;
@@ -255,30 +257,9 @@ function ZeroGrid() {
         stroke="#64748b"
         strokeWidth={1.25}
       />
-      <line
-        x1={Z_L}
-        y1={Z_DIV}
-        x2={Z_R}
-        y2={Z_DIV}
-        stroke="#64748b"
-        strokeWidth={1.15}
-      />
-      <line
-        x1={Z_COL1}
-        y1={Z_DIV}
-        x2={Z_COL1}
-        y2={Z_BOT}
-        stroke="#64748b"
-        strokeWidth={1}
-      />
-      <line
-        x1={Z_COL2}
-        y1={Z_DIV}
-        x2={Z_COL2}
-        y2={Z_BOT}
-        stroke="#64748b"
-        strokeWidth={1}
-      />
+      <line x1={Z_L} y1={Z_DIV} x2={Z_R} y2={Z_DIV} stroke="#64748b" strokeWidth={1.15} />
+      <line x1={Z_COL1} y1={Z_DIV} x2={Z_COL1} y2={Z_BOT} stroke="#64748b" strokeWidth={1} />
+      <line x1={Z_COL2} y1={Z_DIV} x2={Z_COL2} y2={Z_BOT} stroke="#64748b" strokeWidth={1} />
     </g>
   );
 }
@@ -295,38 +276,10 @@ function NGrid({ showZeroLabel }: { showZeroLabel: boolean }) {
         stroke="#64748b"
         strokeWidth={1.25}
       />
-      <line
-        x1={N_L}
-        y1={N_DIV0}
-        x2={N_R}
-        y2={N_DIV0}
-        stroke="#64748b"
-        strokeWidth={1.15}
-      />
-      <line
-        x1={N_L}
-        y1={N_DIV1}
-        x2={N_R}
-        y2={N_DIV1}
-        stroke="#64748b"
-        strokeWidth={1.15}
-      />
-      <line
-        x1={N_C1}
-        y1={N_DIV0}
-        x2={N_C1}
-        y2={N_BOT}
-        stroke="#64748b"
-        strokeWidth={1}
-      />
-      <line
-        x1={N_C2}
-        y1={N_DIV0}
-        x2={N_C2}
-        y2={N_BOT}
-        stroke="#64748b"
-        strokeWidth={1}
-      />
+      <line x1={N_L} y1={N_DIV0} x2={N_R} y2={N_DIV0} stroke="#64748b" strokeWidth={1.15} />
+      <line x1={N_L} y1={N_DIV1} x2={N_R} y2={N_DIV1} stroke="#64748b" strokeWidth={1.15} />
+      <line x1={N_C1} y1={N_DIV0} x2={N_C1} y2={N_BOT} stroke="#64748b" strokeWidth={1} />
+      <line x1={N_C2} y1={N_DIV0} x2={N_C2} y2={N_BOT} stroke="#64748b" strokeWidth={1} />
       {showZeroLabel && (
         <text
           x={N_MID}
