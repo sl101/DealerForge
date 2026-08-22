@@ -48,6 +48,10 @@ const MULT: Record<string, number> = {
   SixLine: 5,
 };
 
+function bestKey(lv: Level) {
+  return `payout_best_streak_l${lv}`;
+}
+
 function logTask(lv: Level, task: RouletteTask) {
   const lines = (task.bets || []).map((b) => {
     const m = MULT[b.type] ?? 1;
@@ -69,6 +73,8 @@ export default function PayoutTrainerPage() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [score, setScore] = useState(0);
   const [attempts, setAttempts] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -110,6 +116,12 @@ export default function PayoutTrainerPage() {
     setLevel(lv);
     setScore(0);
     setAttempts(0);
+    setStreak(0);
+    try {
+      setBestStreak(Number(localStorage.getItem(bestKey(lv)) || 0));
+    } catch {
+      setBestStreak(0);
+    }
     setScreen('play');
     createTask(lv);
   };
@@ -134,9 +146,27 @@ export default function PayoutTrainerPage() {
     if (ok) {
       const bonus = Math.max(5, timeLeft);
       setScore((s) => s + bonus * level);
+      setStreak((s) => {
+        const next = s + 1;
+        setBestStreak((b) => {
+          if (next > b) {
+            try {
+              localStorage.setItem(bestKey(level), String(next));
+            } catch {
+              /* ignore */
+            }
+            return next;
+          }
+          return b;
+        });
+        return next;
+      });
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30);
-    } else if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate([40, 30, 40]);
+    } else {
+      setStreak(0);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate([40, 30, 40]);
+      }
     }
   };
 
@@ -183,17 +213,44 @@ export default function PayoutTrainerPage() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {(Object.keys(LEVEL_CONFIG) as unknown as Level[]).map((id) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => startLevel(Number(id) as Level)}
-                className="mode-card"
-                style={{ textAlign: 'center', fontSize: 20, fontWeight: 700, padding: 20 }}
-              >
-                {LEVEL_CONFIG[id as unknown as Level].title}
-              </button>
-            ))}
+            {(Object.keys(LEVEL_CONFIG) as unknown as Level[]).map((id) => {
+              const lv = Number(id) as Level;
+              let best = 0;
+              try {
+                best = Number(localStorage.getItem(bestKey(lv)) || 0);
+              } catch {
+                /* ignore */
+              }
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => startLevel(lv)}
+                  className="mode-card"
+                  style={{
+                    textAlign: 'center',
+                    fontSize: 20,
+                    fontWeight: 700,
+                    padding: 20,
+                  }}
+                >
+                  {LEVEL_CONFIG[lv].title}
+                  {best > 0 && (
+                    <span
+                      style={{
+                        display: 'block',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: 'var(--text-muted)',
+                        marginTop: 6,
+                      }}
+                    >
+                      🔥 best {best}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </main>
       </div>
@@ -248,8 +305,8 @@ export default function PayoutTrainerPage() {
             <div>
               Score: <span style={{ color: 'var(--primary)' }}>{score}</span>
             </div>
-            <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>
-              {LEVEL_CONFIG[level].title} · {attempts}
+            <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 2 }}>
+              {LEVEL_CONFIG[level].title} · 🔥 {streak} · best {bestStreak}
             </div>
           </div>
         </div>
@@ -260,10 +317,6 @@ export default function PayoutTrainerPage() {
           {task && (
             <>
               <div className="task-card">
-                <div className="task-card-title">
-                  Payout for{' '}
-                  <span style={{ color: 'var(--number-red)' }}>{task.winningNumber}</span>
-                </div>
                 <div className="combo-diagram">
                   <ComboDiagram
                     family={familyFromNumber(task.winningNumber)}
@@ -272,6 +325,7 @@ export default function PayoutTrainerPage() {
                       label: s.label,
                     }))}
                     size={220}
+                    highlightFocus
                   />
                 </div>
               </div>

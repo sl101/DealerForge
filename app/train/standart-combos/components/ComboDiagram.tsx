@@ -10,6 +10,8 @@ interface ComboDiagramProps {
   family: GridFamily;
   chips: DiagramChip[];
   size?: number;
+  /** Soft highlight of the focus cell (Payout trainer) */
+  highlightFocus?: boolean;
 }
 
 const CELL = 26;
@@ -62,7 +64,6 @@ const BOTTOM34_ANCHORS = buildAnchorsAtFocus(0, 2);
 const BOTTOM35_ANCHORS = buildAnchorsAtFocus(1, 2);
 const BOTTOM36_ANCHORS = buildAnchorsAtFocus(2, 2);
 
-/* Zero: 0 band + row 1-2-3 */
 const Z_L = OX;
 const Z_TOP = OY + CELL * 0.5;
 const Z_DIV = Z_TOP + CELL;
@@ -82,7 +83,6 @@ const ZERO_ANCHORS: Partial<Record<ChipPos, { x: number; y: number }>> = {
   Z_street_023: { x: Z_COL2, y: Z_DIV },
 };
 
-/* n1/n2/n3: 0 + 1-2-3 + 4-5-6 */
 const N_L = OX;
 const N_TOP = OY;
 const N_DIV0 = N_TOP + CELL;
@@ -99,15 +99,9 @@ function nFocusCenter(which: 1 | 2 | 3) {
   return { x, y };
 }
 
-/**
- * Corners relative to focus cell (1 / 2 / 3), NOT the outer table edge.
- * n3 SW = junction 2-3-5-6 → (N_C2, N_DIV1) — must NOT equal six_S at (N_L, N_DIV1).
- */
 function buildNAnchors(which: 1 | 2 | 3): Partial<Record<ChipPos, { x: number; y: number }>> {
   const C = nFocusCenter(which);
   const yMid = C.y;
-
-  // Vertical edges of focus cell
   const leftLine = which === 1 ? N_L : which === 2 ? N_C1 : N_C2;
   const rightLine = which === 1 ? N_C1 : which === 2 ? N_C2 : N_R;
 
@@ -121,7 +115,6 @@ function buildNAnchors(which: 1 | 2 | 3): Partial<Record<ChipPos, { x: number; y
     NE: { x: rightLine, y: N_DIV0 },
     SW: { x: leftLine, y: N_DIV1 },
     SE: { x: rightLine, y: N_DIV1 },
-    // outer left edge (street / six-line convention)
     street: { x: N_L, y: yMid },
     six_N: { x: N_L, y: N_DIV0 },
     six_S: { x: N_L, y: N_DIV1 },
@@ -162,6 +155,33 @@ function anchorsFor(family: GridFamily): Partial<Record<ChipPos, { x: number; y:
     case 'center':
     default:
       return CENTER_ANCHORS;
+  }
+}
+
+function focusCellRect(family: GridFamily): { x: number; y: number; w: number; h: number } | null {
+  switch (family) {
+    case 'center':
+      return { x: OX + CELL, y: OY + CELL, w: CELL, h: CELL };
+    case 'left':
+      return { x: OX, y: OY + CELL, w: CELL, h: CELL };
+    case 'right':
+      return { x: OX + CELL * 2, y: OY + CELL, w: CELL, h: CELL };
+    case 'bottom34':
+      return { x: OX, y: OY + CELL * 2, w: CELL, h: CELL };
+    case 'bottom35':
+      return { x: OX + CELL, y: OY + CELL * 2, w: CELL, h: CELL };
+    case 'bottom36':
+      return { x: OX + CELL * 2, y: OY + CELL * 2, w: CELL, h: CELL };
+    case 'zero':
+      return { x: Z_L, y: Z_TOP, w: GRID, h: CELL };
+    case 'n1':
+      return { x: N_L, y: N_DIV0, w: CELL, h: CELL };
+    case 'n2':
+      return { x: N_C1, y: N_DIV0, w: CELL, h: CELL };
+    case 'n3':
+      return { x: N_C2, y: N_DIV0, w: CELL, h: CELL };
+    default:
+      return null;
   }
 }
 
@@ -304,10 +324,106 @@ function Grid({ family }: { family: GridFamily }) {
   return <FocusGrid />;
 }
 
+/** Inset fill so grid strokes stay fully visible */
+function FocusHighlight({ family }: { family: GridFamily }) {
+  const r = focusCellRect(family);
+  if (!r) return null;
+  const inset = 1.35;
+  return (
+    <rect
+      x={r.x + inset}
+      y={r.y + inset}
+      width={Math.max(0, r.w - inset * 2)}
+      height={Math.max(0, r.h - inset * 2)}
+      fill="rgba(56, 189, 248, 0.25)"
+      stroke="none"
+      rx={1.2}
+      pointerEvents="none"
+    />
+  );
+}
+
+/** Redraw grid lines above highlight so they are never covered */
+function GridLinesOnTop({ family }: { family: GridFamily }) {
+  if (family === 'zero') {
+    return (
+      <g pointerEvents="none">
+        <rect
+          x={Z_L}
+          y={Z_TOP}
+          width={GRID}
+          height={CELL * 2}
+          fill="none"
+          stroke="#64748b"
+          strokeWidth={1.25}
+        />
+        <line x1={Z_L} y1={Z_DIV} x2={Z_R} y2={Z_DIV} stroke="#64748b" strokeWidth={1.15} />
+        <line x1={Z_COL1} y1={Z_DIV} x2={Z_COL1} y2={Z_BOT} stroke="#64748b" strokeWidth={1} />
+        <line x1={Z_COL2} y1={Z_DIV} x2={Z_COL2} y2={Z_BOT} stroke="#64748b" strokeWidth={1} />
+      </g>
+    );
+  }
+
+  if (family === 'n1' || family === 'n2' || family === 'n3') {
+    return (
+      <g pointerEvents="none">
+        <rect
+          x={N_L}
+          y={N_TOP}
+          width={GRID}
+          height={CELL * 3}
+          fill="none"
+          stroke="#64748b"
+          strokeWidth={1.25}
+        />
+        <line x1={N_L} y1={N_DIV0} x2={N_R} y2={N_DIV0} stroke="#64748b" strokeWidth={1.15} />
+        <line x1={N_L} y1={N_DIV1} x2={N_R} y2={N_DIV1} stroke="#64748b" strokeWidth={1.15} />
+        <line x1={N_C1} y1={N_DIV0} x2={N_C1} y2={N_BOT} stroke="#64748b" strokeWidth={1} />
+        <line x1={N_C2} y1={N_DIV0} x2={N_C2} y2={N_BOT} stroke="#64748b" strokeWidth={1} />
+      </g>
+    );
+  }
+
+  return (
+    <g pointerEvents="none">
+      <rect
+        x={OX}
+        y={OY}
+        width={GRID}
+        height={GRID}
+        fill="none"
+        stroke="#64748b"
+        strokeWidth={1.25}
+      />
+      {[1, 2].map((i) => (
+        <g key={i}>
+          <line
+            x1={OX + CELL * i}
+            y1={OY}
+            x2={OX + CELL * i}
+            y2={OY + GRID}
+            stroke="#64748b"
+            strokeWidth={1}
+          />
+          <line
+            x1={OX}
+            y1={OY + CELL * i}
+            x2={OX + GRID}
+            y2={OY + CELL * i}
+            stroke="#64748b"
+            strokeWidth={1}
+          />
+        </g>
+      ))}
+    </g>
+  );
+}
+
 export default function ComboDiagram({
   family,
   chips,
   size = 300,
+  highlightFocus = false,
 }: ComboDiagramProps) {
   const anchors = anchorsFor(family);
 
@@ -325,6 +441,8 @@ export default function ComboDiagram({
       }}
     >
       <Grid family={family} />
+      {highlightFocus && <FocusHighlight family={family} />}
+      {highlightFocus && <GridLinesOnTop family={family} />}
       {chips.map((raw, i) => {
         const { pos, label } = normalizeChip(raw);
         const p = anchors[pos];
