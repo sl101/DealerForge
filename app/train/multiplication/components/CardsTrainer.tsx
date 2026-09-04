@@ -16,8 +16,20 @@ interface CardsTrainerProps {
   onBack: () => void;
 }
 
+type Action = 'know' | 'repeat';
+
+interface HistoryItem {
+  index: number;
+  fact: Fact;
+  action: Action;
+  reviewIds: string[];
+  deck: Fact[];
+  answered: number;
+}
+
 const THRESHOLD = 90;
-const EXIT_MS = 280;
+const EXIT_MS = 320;
+const ENTER_MS = 350;
 
 export default function CardsTrainer({ onBack }: CardsTrainerProps) {
   const [selected, setSelected] = useState<Multiplier[]>([...MULTIPLIERS]);
@@ -28,13 +40,13 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
   const [reviewIds, setReviewIds] = useState<string[]>([]);
   const [flipped, setFlipped] = useState(false);
   const [answered, setAnswered] = useState(0);
-  const [history, setHistory] = useState<{ index: number; fact: Fact }[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [cardKey, setCardKey] = useState(0);
 
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
-  const [exiting, setExiting] = useState<'left' | 'right' | null>(null);
-  const [noTransition, setNoTransition] = useState(false);
+  const [exitDir, setExitDir] = useState<'left' | 'right' | null>(null);
+  const [enterDir, setEnterDir] = useState<'left' | 'right' | null>(null);
 
   const startX = useRef(0);
   const startY = useRef(0);
@@ -56,7 +68,8 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
     setAnswered(0);
     setHistory([]);
     setDragX(0);
-    setExiting(null);
+    setExitDir(null);
+    setEnterDir(null);
     setCardKey((k) => k + 1);
     busy.current = false;
   };
@@ -80,7 +93,7 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
     });
   };
 
-  const goNext = (action: 'know' | 'repeat') => {
+  const applyNext = (action: Action) => {
     const card = currentRef.current;
     if (!card) {
       busy.current = false;
@@ -88,31 +101,26 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
     }
 
     setStats((prev) => updateFactStat(prev, card.id, action === 'know'));
-    setHistory((h) => [...h, { index, fact: card }]);
 
-    setReviewIds((prev) => {
-      if (action === 'know') return prev.filter((id) => id !== card.id);
-      if (prev.includes(card.id)) return prev;
-      return [...prev, card.id];
-    });
+    const nextReview =
+      action === 'know'
+        ? reviewIds.filter((id) => id !== card.id)
+        : reviewIds.includes(card.id)
+          ? reviewIds
+          : [...reviewIds, card.id];
 
+    setReviewIds(nextReview);
     setAnswered((n) => n + 1);
     setFlipped(false);
-
-    setNoTransition(true);
-    setExiting(null);
     setDragX(0);
     setDragging(false);
+    setExitDir(null);
 
     setIndex((i) => {
       const next = i + 1;
       if (next >= deck.length) {
         const list = buildFacts(selected.length ? selected : MULTIPLIERS);
-        const reviewSet = new Set(
-          action === 'know'
-            ? reviewIds.filter((id) => id !== card.id)
-            : [...reviewIds.filter((id) => id !== card.id), card.id]
-        );
+        const reviewSet = new Set(nextReview);
         const reviewFacts = list.filter((f) => reviewSet.has(f.id));
         const rest = list
           .filter((f) => !reviewSet.has(f.id))
@@ -125,47 +133,62 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
     });
 
     setCardKey((k) => k + 1);
-    requestAnimationFrame(() => {
-      setNoTransition(false);
-      busy.current = false;
-    });
-  };
-
-  const undo = () => {
-    if (busy.current || history.length === 0) return;
-    const prev = history[history.length - 1];
-    setHistory((h) => h.slice(0, -1));
-    setNoTransition(true);
-    setDragX(0);
-    setExiting(null);
-    setFlipped(false);
-    setIndex(prev.index);
-    setDeck((d) => {
-      const copy = [...d];
-      if (copy[prev.index]?.id !== prev.fact.id) {
-        return [prev.fact, ...copy.filter((f) => f.id !== prev.fact.id)];
-      }
-      return copy;
-    });
-    setCardKey((k) => k + 1);
-    requestAnimationFrame(() => setNoTransition(false));
+    busy.current = false;
   };
 
   const finishExit = (dir: 'left' | 'right') => {
-    if (busy.current || !currentRef.current) return;
+    const card = currentRef.current;
+    if (busy.current || !card || exitDir) return;
     busy.current = true;
-    setExiting(dir);
+
+    const action: Action = dir === 'right' ? 'know' : 'repeat';
+
+    setHistory((h) => [
+      ...h,
+      {
+        index,
+        fact: card,
+        action,
+        reviewIds: [...reviewIds],
+        deck: [...deck],
+        answered,
+      },
+    ]);
+
+    setExitDir(dir);
     setDragging(false);
-    const w = typeof window !== 'undefined' ? window.innerWidth : 400;
-    setDragX(dir === 'right' ? w * 1.15 : -w * 1.15);
+    setDragX(0);
 
     window.setTimeout(() => {
-      goNext(dir === 'right' ? 'know' : 'repeat');
+      applyNext(action);
     }, EXIT_MS);
   };
 
+  const undo = () => {
+    if (busy.current || history.length === 0 || exitDir) return;
+    busy.current = true;
+
+    const prev = history[history.length - 1];
+    setHistory((h) => h.slice(0, -1));
+
+    setEnterDir(prev.action === 'know' ? 'right' : 'left');
+    setDeck(prev.deck);
+    setIndex(prev.index);
+    setReviewIds(prev.reviewIds);
+    setAnswered(prev.answered);
+    setFlipped(false);
+    setDragX(0);
+    setExitDir(null);
+    setCardKey((k) => k + 1);
+
+    window.setTimeout(() => {
+      setEnterDir(null);
+      busy.current = false;
+    }, ENTER_MS);
+  };
+
   const onPointerDown = (e: React.PointerEvent) => {
-    if (busy.current || exiting) return;
+    if (busy.current || exitDir || enterDir) return;
     startX.current = e.clientX;
     startY.current = e.clientY;
     locked.current = false;
@@ -178,7 +201,7 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragging || busy.current || exiting) return;
+    if (!dragging || busy.current || exitDir) return;
     const dx = e.clientX - startX.current;
     const dy = e.clientY - startY.current;
     if (!locked.current) {
@@ -194,7 +217,7 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
-    if (busy.current || exiting) return;
+    if (busy.current || exitDir) return;
     const dx = e.clientX - startX.current;
     if (locked.current && dx > THRESHOLD) {
       finishExit('right');
@@ -204,49 +227,8 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
       finishExit('left');
       return;
     }
-    setDragX(0);
-    setDragging(false);
-    locked.current = false;
-  };
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    if (busy.current || exiting) return;
-    const t = e.touches[0];
-    startX.current = t.clientX;
-    startY.current = t.clientY;
-    locked.current = false;
-    setDragging(true);
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (!dragging || busy.current || exiting) return;
-    const t = e.touches[0];
-    const dx = t.clientX - startX.current;
-    const dy = t.clientY - startY.current;
-    if (!locked.current) {
-      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
-      if (Math.abs(dx) >= Math.abs(dy)) locked.current = true;
-      else {
-        setDragging(false);
-        setDragX(0);
-        return;
-      }
-    }
-    if (locked.current) e.preventDefault();
-    setDragX(dx);
-  };
-
-  const onTouchEnd = (e: React.TouchEvent) => {
-    if (busy.current || exiting) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - startX.current;
-    if (locked.current && dx > THRESHOLD) {
-      finishExit('right');
-      return;
-    }
-    if (locked.current && dx < -THRESHOLD) {
-      finishExit('left');
-      return;
+    if (Math.abs(dx) < 10 && Math.abs(e.clientY - startY.current) < 10) {
+      setFlipped((f) => !f);
     }
     setDragX(0);
     setDragging(false);
@@ -259,8 +241,14 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
         <header className="page-header">
           <div className="page-inner" style={{ paddingTop: 14, paddingBottom: 14 }}>
             <button
+              type="button"
               onClick={onBack}
-              style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--primary)',
+                cursor: 'pointer',
+              }}
             >
               <ArrowLeft size={22} />
             </button>
@@ -276,10 +264,21 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
     dragX > 12
       ? `rgba(52, 211, 153, ${0.15 + intensity * 0.35})`
       : dragX < -12
-      ? `rgba(248, 113, 113, ${0.15 + intensity * 0.35})`
-      : 'transparent';
+        ? `rgba(248, 113, 113, ${0.15 + intensity * 0.35})`
+        : 'transparent';
   const rotation = Math.max(-12, Math.min(12, dragX / 20));
   const labelOpacity = Math.min(1, Math.max(0, (abs - 20) / 50));
+
+  const motionClass = [
+    exitDir === 'left' ? 'card-exit-left' : '',
+    exitDir === 'right' ? 'card-exit-right' : '',
+    enterDir === 'left' ? 'card-enter-left' : '',
+    enterDir === 'right' ? 'card-enter-right' : '',
+    dragX > 40 ? 'card-swipe-hint-right' : '',
+    dragX < -40 ? 'card-swipe-hint-left' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div className="page-shell">
@@ -295,8 +294,14 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
           }}
         >
           <button
+            type="button"
             onClick={onBack}
-            style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--primary)',
+              cursor: 'pointer',
+            }}
           >
             <ArrowLeft size={20} />
           </button>
@@ -380,26 +385,18 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
 
           <div
             key={cardKey}
+            className={motionClass}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
-            onTouchStart={onTouchStart}
-            onTouchMove={onTouchMove}
-            onTouchEnd={onTouchEnd}
-            onClick={() => {
-              if (busy.current || exiting || Math.abs(dragX) > 8) return;
-              setFlipped((f) => !f);
-            }}
             style={{
-              transform: `translateX(${dragX}px) rotate(${rotation}deg)`,
-              transition: noTransition
-                ? 'none'
-                : dragging
-                ? 'none'
-                : exiting
-                ? `transform ${EXIT_MS}ms ease-in`
-                : 'transform 0.25s ease-out',
+              transform:
+                exitDir || enterDir
+                  ? undefined
+                  : `translateX(${dragX}px) rotate(${rotation}deg)`,
+              transition:
+                dragging || exitDir || enterDir ? 'none' : 'transform 0.25s ease-out',
               cursor: 'grab',
               userSelect: 'none',
               WebkitUserSelect: 'none',
@@ -413,11 +410,7 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
                 background: 'var(--card-front)',
                 borderRadius: 'var(--radius-card)',
                 minHeight: 200,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 28,
+                height: 200,
                 position: 'relative',
                 overflow: 'hidden',
                 boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
@@ -429,57 +422,62 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
                   inset: 0,
                   background: glow,
                   pointerEvents: 'none',
+                  zIndex: 2,
+                  borderRadius: 'inherit',
                 }}
               />
-              {!flipped ? (
+
+              <div className="card-flip-scene" style={{ height: '100%', minHeight: 200 }}>
                 <div
-                  style={{
-                    fontSize: 42,
-                    fontWeight: 800,
-                    color: '#0f172a',
-                    position: 'relative',
-                  }}
+                  className={`card-flip-inner${flipped ? ' is-flipped' : ''}`}
+                  style={{ minHeight: 200 }}
                 >
-                  {current.multiplier} × {current.factor}
+                  <div
+                    className="card-face"
+                    style={{
+                      background: 'var(--card-front)',
+                      padding: 28,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 42,
+                        fontWeight: 800,
+                        color: '#0f172a',
+                      }}
+                    >
+                      {current.multiplier} × {current.factor}
+                    </div>
+                  </div>
+                  <div
+                    className="card-face card-face-back"
+                    style={{
+                      background: 'var(--card-back)',
+                      padding: 28,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 56,
+                        fontWeight: 800,
+                        color: 'var(--number-red, #dc2626)',
+                      }}
+                    >
+                      {current.answer}
+                    </div>
+                  </div>
                 </div>
-              ) : (
-                <div
-                  style={{
-                    fontSize: 56,
-                    fontWeight: 800,
-                    color: 'var(--number-red, #dc2626)',
-                    position: 'relative',
-                  }}
-                >
-                  {current.answer}
-                </div>
-              )}
-              <div
-                style={{
-                  marginTop: 14,
-                  fontSize: 13,
-                  color: 'var(--card-text-muted)',
-                  position: 'relative',
-                }}
-              >
-                {flipped ? 'Tap to flip back' : 'Tap to flip · swipe to rate'}
               </div>
             </div>
           </div>
         </div>
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: 12,
-          }}
-        >
-          {/* Left column: Repeat + Undo aligned left */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <button
               type="button"
               onClick={() => finishExit('left')}
+              disabled={!!exitDir || busy.current}
               className="btn-repeat"
               style={{
                 padding: 15,
@@ -498,7 +496,7 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
             <button
               type="button"
               onClick={undo}
-              disabled={history.length === 0}
+              disabled={history.length === 0 || !!exitDir}
               title="Undo last"
               style={{
                 alignSelf: 'flex-start',
@@ -519,6 +517,7 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
           <button
             type="button"
             onClick={() => finishExit('right')}
+            disabled={!!exitDir || busy.current}
             className="btn-know"
             style={{
               padding: 15,

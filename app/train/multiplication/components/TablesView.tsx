@@ -13,8 +13,17 @@ export default function TablesView({ onBack }: TablesViewProps) {
   const rows = tableFor(active);
 
   return (
-    <div className="page-shell">
-      <header className="page-header">
+    <div
+      className="page-shell"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100dvh',
+        maxHeight: '100dvh',
+        overflow: 'hidden',
+      }}
+    >
+      <header className="page-header" style={{ flexShrink: 0 }}>
         <div
           className="page-inner"
           style={{
@@ -26,8 +35,14 @@ export default function TablesView({ onBack }: TablesViewProps) {
           }}
         >
           <button
+            type="button"
             onClick={onBack}
-            style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--primary)',
+              cursor: 'pointer',
+            }}
           >
             <ArrowLeft size={22} />
           </button>
@@ -44,6 +59,7 @@ export default function TablesView({ onBack }: TablesViewProps) {
           paddingBottom: 24,
           display: 'flex',
           flexDirection: 'column',
+          overflow: 'hidden',
         }}
       >
         <div
@@ -78,16 +94,18 @@ export default function TablesView({ onBack }: TablesViewProps) {
           ))}
         </div>
 
-        {/* Scroll only inside the card */}
+        {/* Only this block scrolls */}
         <div
           style={{
             flex: 1,
             minHeight: 0,
+            maxHeight: '100%',
             background: 'var(--card-front)',
             borderRadius: 'var(--radius-card)',
             color: '#0f172a',
             overflowY: 'auto',
             WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain',
             boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
           }}
         >

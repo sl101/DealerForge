@@ -15,13 +15,17 @@ interface StudyTrainerProps {
   onBack: () => void;
 }
 
+type Action = 'know' | 'repeat';
+
 interface Snapshot {
   index: number;
   flipped: boolean;
+  action: Action;
 }
 
 const SWIPE_THRESHOLD = 80;
-/** Portrait card height (as before) */
+const EXIT_MS = 320;
+const ENTER_MS = 350;
 const CARD_HEIGHT_PORTRAIT = 340;
 
 export default function StudyTrainer({ onBack }: StudyTrainerProps) {
@@ -34,6 +38,9 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
 
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
+  const [exitDir, setExitDir] = useState<'left' | 'right' | null>(null);
+  const [enterDir, setEnterDir] = useState<'left' | 'right' | null>(null);
+
   const startX = useRef(0);
   const startY = useRef(0);
   const locked = useRef(false);
@@ -57,18 +64,14 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
     return Object.entries(stats).filter(([id, s]) => ids.has(id) && s.known).length;
   }, [stats]);
 
-  const pushHistory = () => {
-    setHistory((h) => [...h, { index, flipped }]);
-  };
-
-  const goNext = (action: 'know' | 'repeat') => {
-    if (!current || busy.current) return;
-    busy.current = true;
-    pushHistory();
+  const applyNext = (action: Action) => {
+    if (!current) return;
     setStats((prev) => updateComboStat(prev, current.id, action === 'know'));
     setSessionSeen((prev) => new Set(prev).add(current.id));
     setFlipped(false);
     setDragX(0);
+    setExitDir(null);
+
     setIndex((i) => {
       if (i + 1 >= deck.length) {
         setDeck([...STANDARD_COMBOS].sort(() => Math.random() - 0.5));
@@ -76,22 +79,43 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
       }
       return i + 1;
     });
-    requestAnimationFrame(() => {
+  };
+
+  const goNext = (action: Action) => {
+    if (!current || busy.current || exitDir) return;
+    busy.current = true;
+
+    setHistory((h) => [...h, { index, flipped, action }]);
+    setExitDir(action === 'know' ? 'right' : 'left');
+    setDragging(false);
+    setDragX(0);
+
+    window.setTimeout(() => {
+      applyNext(action);
       busy.current = false;
-    });
+    }, EXIT_MS);
   };
 
   const undo = () => {
-    if (history.length === 0 || busy.current) return;
+    if (history.length === 0 || busy.current || exitDir) return;
+    busy.current = true;
+
     const prev = history[history.length - 1];
     setHistory((h) => h.slice(0, -1));
+    setEnterDir(prev.action === 'know' ? 'right' : 'left');
     setIndex(prev.index);
     setFlipped(prev.flipped);
     setDragX(0);
+    setExitDir(null);
+
+    window.setTimeout(() => {
+      setEnterDir(null);
+      busy.current = false;
+    }, ENTER_MS);
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (busy.current) return;
+    if (busy.current || exitDir || enterDir) return;
     startX.current = e.clientX;
     startY.current = e.clientY;
     locked.current = false;
@@ -104,7 +128,7 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragging || busy.current) return;
+    if (!dragging || busy.current || exitDir) return;
     const dx = e.clientX - startX.current;
     const dy = e.clientY - startY.current;
     if (!locked.current) {
@@ -120,16 +144,14 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
-    if (busy.current) return;
+    if (busy.current || exitDir) return;
     const dx = e.clientX - startX.current;
     if (locked.current && dx > SWIPE_THRESHOLD) {
       goNext('know');
-      setDragging(false);
       return;
     }
     if (locked.current && dx < -SWIPE_THRESHOLD) {
       goNext('repeat');
-      setDragging(false);
       return;
     }
     if (Math.abs(dx) < 12 && Math.abs(e.clientY - startY.current) < 12) {
@@ -168,11 +190,25 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
     dragX > 20
       ? `rgba(52, 211, 153, ${Math.min(0.45, Math.abs(dragX) / 200)})`
       : dragX < -20
-      ? `rgba(248, 113, 113, ${Math.min(0.45, Math.abs(dragX) / 200)})`
-      : 'transparent';
+        ? `rgba(248, 113, 113, ${Math.min(0.45, Math.abs(dragX) / 200)})`
+        : 'transparent';
+
+  const motionClass = [
+    exitDir === 'left' ? 'card-exit-left' : '',
+    exitDir === 'right' ? 'card-exit-right' : '',
+    enterDir === 'left' ? 'card-enter-left' : '',
+    enterDir === 'right' ? 'card-enter-right' : '',
+    dragX > 40 ? 'card-swipe-hint-right' : '',
+    dragX < -40 ? 'card-swipe-hint-left' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
-    <div className="page-shell" style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
+    <div
+      className="page-shell"
+      style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}
+    >
       <header className="page-header">
         <div
           className="page-inner"
@@ -215,7 +251,7 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
         }}
       >
         <div
-          className="study-card task-card"
+          className={`study-card task-card ${motionClass}`}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -227,13 +263,14 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
             minHeight: CARD_HEIGHT_PORTRAIT,
             boxSizing: 'border-box',
             marginBottom: 16,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transform: `translateX(${dragX}px) rotate(${rot}deg)`,
-            transition: dragging ? 'none' : 'transform 0.2s ease-out',
+            padding: 0,
             overflow: 'hidden',
+            transform:
+              exitDir || enterDir
+                ? undefined
+                : `translateX(${dragX}px) rotate(${rot}deg)`,
+            transition:
+              dragging || exitDir || enterDir ? 'none' : 'transform 0.2s ease-out',
             touchAction: 'none',
             userSelect: 'none',
             cursor: 'grab',
@@ -245,24 +282,49 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
               inset: 0,
               background: glow,
               pointerEvents: 'none',
+              zIndex: 2,
+              borderRadius: 'inherit',
             }}
           />
 
-          {!flipped ? (
-            <div className="combo-diagram">
-              <ComboDiagram family={current.family} chips={current.chips} size={240} />
-            </div>
-          ) : (
+          <div
+            className="card-flip-scene"
+            style={{ height: '100%', minHeight: CARD_HEIGHT_PORTRAIT }}
+          >
             <div
-              style={{
-                fontSize: 56,
-                fontWeight: 800,
-                color: '#0f172a',
-              }}
+              className={`card-flip-inner${flipped ? ' is-flipped' : ''}`}
+              style={{ minHeight: CARD_HEIGHT_PORTRAIT }}
             >
-              {current.answer}
+              <div
+                className="card-face"
+                style={{
+                  background: 'var(--card-front)',
+                  padding: 16,
+                }}
+              >
+                <div className="combo-diagram">
+                  <ComboDiagram family={current.family} chips={current.chips} size={240} />
+                </div>
+              </div>
+              <div
+                className="card-face card-face-back"
+                style={{
+                  background: 'var(--card-back)',
+                  padding: 16,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 56,
+                    fontWeight: 800,
+                    color: '#0f172a',
+                  }}
+                >
+                  {current.answer}
+                </div>
+              </div>
             </div>
-          )}
+          </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -270,6 +332,7 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
             <button
               type="button"
               onClick={() => goNext('repeat')}
+              disabled={!!exitDir || busy.current}
               className="btn-repeat"
               style={{
                 padding: 15,
@@ -288,7 +351,7 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
             <button
               type="button"
               onClick={undo}
-              disabled={history.length === 0}
+              disabled={history.length === 0 || !!exitDir}
               style={{
                 alignSelf: 'flex-start',
                 background: 'none',
@@ -305,6 +368,7 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
           <button
             type="button"
             onClick={() => goNext('know')}
+            disabled={!!exitDir || busy.current}
             className="btn-know"
             style={{
               padding: 15,

@@ -257,6 +257,8 @@ export default function PayoutTrainerPage() {
     );
   }
 
+  const showKeypad = isCorrect === null;
+
   return (
     <div
       className="page-shell"
@@ -313,7 +315,14 @@ export default function PayoutTrainerPage() {
       </header>
 
       <div className="play-with-keypad">
-        <main className="play-main page-inner" style={{ paddingTop: 16 }}>
+        <main
+          className="play-main page-inner"
+          style={{
+            paddingTop: 16,
+            // No reserved space for fixed keypad when result is shown
+            paddingBottom: showKeypad ? undefined : 24,
+          }}
+        >
           {task && (
             <>
               <div className="task-card">
@@ -330,23 +339,20 @@ export default function PayoutTrainerPage() {
                 </div>
               </div>
 
-              <input
-                ref={inputRef}
-                className="answer-input"
-                type="text"
-                readOnly
-                inputMode="none"
-                value={userAnswer}
-                placeholder="Total"
-                style={{
-                  border:
-                    isCorrect === true
-                      ? '2px solid var(--success)'
-                      : isCorrect === false
-                      ? '2px solid var(--error)'
-                      : '2px solid var(--border)',
-                }}
-              />
+              {showKeypad && (
+                <input
+                  ref={inputRef}
+                  className="answer-input"
+                  type="text"
+                  readOnly
+                  inputMode="none"
+                  value={userAnswer}
+                  placeholder="Total"
+                  style={{
+                    border: '2px solid var(--border)',
+                  }}
+                />
+              )}
 
               {isCorrect !== null && (
                 <div
@@ -389,17 +395,18 @@ export default function PayoutTrainerPage() {
           )}
         </main>
 
-        <div className="keypad-dock">
-          <div className="keypad-dock-inner">
-            <NumericKeypad
-              disabled={isCorrect !== null}
-              onDigit={(d) => setUserAnswer((prev) => prev + d)}
-              onBackspace={() => setUserAnswer((prev) => prev.slice(0, -1))}
-              onSpace={() => {}}
-              onEnter={handleSubmit}
-            />
+        {showKeypad && (
+          <div className="keypad-dock">
+            <div className="keypad-dock-inner">
+              <NumericKeypad
+                onDigit={(d) => setUserAnswer((prev) => prev + d)}
+                onBackspace={() => setUserAnswer((prev) => prev.slice(0, -1))}
+                onSpace={() => {}}
+                onEnter={handleSubmit}
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <AuthModal

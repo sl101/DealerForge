@@ -17,16 +17,19 @@ interface CardsTrainerProps {
 }
 
 type FaceMode = 'number' | 'neighbors';
+type Action = 'know' | 'repeat';
 
 interface Snapshot {
   index: number;
   queue: NeighborCard[];
   review: NeighborCard[];
-  seen: Set<number>;
   flipped: boolean;
+  action: Action;
 }
 
 const SWIPE_THRESHOLD = 80;
+const EXIT_MS = 320;
+const ENTER_MS = 350;
 
 export default function CardsTrainer({ onBack }: CardsTrainerProps) {
   const [depth, setDepth] = useState<Depth>('1/1');
@@ -40,6 +43,9 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
 
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
+  const [exitDir, setExitDir] = useState<'left' | 'right' | null>(null);
+  const [enterDir, setEnterDir] = useState<'left' | 'right' | null>(null);
+
   const startX = useRef(0);
   const startY = useRef(0);
   const locked = useRef(false);
@@ -56,7 +62,6 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
   }, []);
 
   const deck = useMemo(() => {
-    // Prefer new cards; interleave some review without growing total count label
     if (queue.length === 0 && review.length === 0) return [];
     if (queue.length === 0) return review;
     return queue;
@@ -69,74 +74,84 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
     [depth]
   );
 
-  const pushHistory = () => {
+  const applyAction = (action: Action) => {
+    if (!current) return;
+
+    updateStat(stats, current.number, action === 'know');
+    setStats({ ...stats });
+
+    const nextQueue = queue.filter((c) => c.number !== current.number);
+    let nextReview =
+      action === 'repeat'
+        ? [...review.filter((c) => c.number !== current.number), current]
+        : review.filter((c) => c.number !== current.number);
+
+    if (nextQueue.length === 0 && nextReview.length === 0) {
+      const reshuffle = [...NEIGHBOR_CARDS].sort(() => Math.random() - 0.5);
+      setQueue(reshuffle);
+      setReview([]);
+      setIndex(0);
+    } else {
+      setQueue(nextQueue);
+      setReview(nextReview);
+      const nextDeck = nextQueue.length > 0 ? nextQueue : nextReview;
+      setIndex((i) => (i >= nextDeck.length ? 0 : i));
+    }
+
+    setFlipped(false);
+    setDragX(0);
+  };
+
+  const goNext = (action: Action) => {
+    if (!current || busy.current) return;
+    busy.current = true;
+
     setHistory((h) => [
       ...h,
       {
         index,
         queue: [...queue],
         review: [...review],
-        seen: new Set(),
         flipped,
+        action,
       },
     ]);
-  };
 
-  const goNext = (action: 'know' | 'repeat') => {
-    if (!current || busy.current) return;
-    busy.current = true;
-    pushHistory();
-
-    updateStat(stats, current.number, action === 'know');
-    setStats({ ...stats });
-
-    if (action === 'repeat') {
-      setReview((r) => [...r.filter((c) => c.number !== current.number), current]);
-    } else {
-      setReview((r) => r.filter((c) => c.number !== current.number));
-    }
-
-    setQueue((q) => q.filter((c) => c.number !== current.number));
-
-    setFlipped(false);
+    setExitDir(action === 'know' ? 'right' : 'left');
     setDragX(0);
+    setDragging(false);
 
-    setIndex((i) => {
-      const nextQueue = queue.filter((c) => c.number !== current.number);
-      const nextReview =
-        action === 'repeat'
-          ? [...review.filter((c) => c.number !== current.number), current]
-          : review.filter((c) => c.number !== current.number);
-
-      const nextDeck = nextQueue.length > 0 ? nextQueue : nextReview;
-      if (nextDeck.length === 0) {
-        const reshuffle = [...NEIGHBOR_CARDS].sort(() => Math.random() - 0.5);
-        setQueue(reshuffle);
-        setReview([]);
-        return 0;
-      }
-      if (i >= nextDeck.length) return 0;
-      return i;
-    });
-
-    requestAnimationFrame(() => {
+    window.setTimeout(() => {
+      applyAction(action);
+      setExitDir(null);
       busy.current = false;
-    });
+    }, EXIT_MS);
   };
 
   const undo = () => {
     if (history.length === 0 || busy.current) return;
+    busy.current = true;
+
     const prev = history[history.length - 1];
     setHistory((h) => h.slice(0, -1));
+
+    // Card returns from the side it left to
+    setEnterDir(prev.action === 'know' ? 'right' : 'left');
     setQueue(prev.queue);
     setReview(prev.review);
     setIndex(prev.index);
     setFlipped(prev.flipped);
     setDragX(0);
+    setExitDir(null);
+
+    window.setTimeout(() => {
+      setEnterDir(null);
+      busy.current = false;
+    }, ENTER_MS);
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (busy.current) return;
+    if (busy.current || exitDir) return;
     startX.current = e.clientX;
     startY.current = e.clientY;
     locked.current = false;
@@ -149,7 +164,7 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragging || busy.current) return;
+    if (!dragging || busy.current || exitDir) return;
     const dx = e.clientX - startX.current;
     const dy = e.clientY - startY.current;
     if (!locked.current) {
@@ -165,16 +180,14 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
-    if (busy.current) return;
+    if (busy.current || exitDir) return;
     const dx = e.clientX - startX.current;
     if (locked.current && dx > SWIPE_THRESHOLD) {
       goNext('know');
-      setDragging(false);
       return;
     }
     if (locked.current && dx < -SWIPE_THRESHOLD) {
       goNext('repeat');
-      setDragging(false);
       return;
     }
     if (Math.abs(dx) < 12 && Math.abs(e.clientY - startY.current) < 12) {
@@ -185,19 +198,35 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
     locked.current = false;
   };
 
-  const rot = Math.max(-10, Math.min(10, dragX / 24));
+  const rot = Math.max(-12, Math.min(12, dragX / 22));
   const glow =
-    dragX > 20
-      ? `rgba(52, 211, 153, ${Math.min(0.45, Math.abs(dragX) / 200)})`
-      : dragX < -20
-      ? `rgba(248, 113, 113, ${Math.min(0.45, Math.abs(dragX) / 200)})`
-      : 'transparent';
+    dragX > 24
+      ? `rgba(52, 211, 153, ${Math.min(0.4, Math.abs(dragX) / 180)})`
+      : dragX < -24
+        ? `rgba(248, 113, 113, ${Math.min(0.4, Math.abs(dragX) / 180)})`
+        : 'transparent';
 
-  const showFrontNumber = faceMode === 'number' ? !flipped : flipped;
-  const showNeighbors = !showFrontNumber;
+  const swipeHint =
+    dragX > 40 ? 'card-swipe-hint-right' : dragX < -40 ? 'card-swipe-hint-left' : '';
+
+  const motionClass = [
+    exitDir === 'left' ? 'card-exit-left' : '',
+    exitDir === 'right' ? 'card-exit-right' : '',
+    enterDir === 'left' ? 'card-enter-left' : '',
+    enterDir === 'right' ? 'card-enter-right' : '',
+    swipeHint,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  // Front = primary face for current mode
+  const frontIsNumber = faceMode === 'number';
 
   return (
-    <div className="page-shell" style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
+    <div
+      className="page-shell"
+      style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}
+    >
       <header className="page-header">
         <div
           className="page-inner"
@@ -279,6 +308,7 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
         {current ? (
           <>
             <div
+              className={motionClass}
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
@@ -287,19 +317,17 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
                 width: '100%',
                 flex: '1 1 auto',
                 maxHeight: 'min(52vh, 360px)',
-                minHeight: 140,
+                minHeight: 160,
                 background: 'var(--card-front)',
                 borderRadius: 'var(--radius-card)',
-                padding: '24px 16px',
                 marginBottom: 16,
                 boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
                 boxSizing: 'border-box',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transform: `translateX(${dragX}px) rotate(${rot}deg)`,
-                transition: dragging ? 'none' : 'transform 0.2s ease-out',
+                transform:
+                  exitDir || enterDir
+                    ? undefined
+                    : `translateX(${dragX}px) rotate(${rot}deg)`,
+                transition: dragging || exitDir || enterDir ? 'none' : 'transform 0.2s ease-out',
                 position: 'relative',
                 overflow: 'hidden',
                 touchAction: 'none',
@@ -313,47 +341,109 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
                   inset: 0,
                   background: glow,
                   pointerEvents: 'none',
+                  zIndex: 2,
+                  borderRadius: 'inherit',
                 }}
               />
 
-              {showFrontNumber && (
+              <div className="card-flip-scene" style={{ minHeight: 160, height: '100%' }}>
                 <div
-                  style={{
-                    fontSize: 'clamp(48px, 14vw, 72px)',
-                    fontWeight: 800,
-                    lineHeight: 1,
-                    color: getNumberColor(current.number),
-                  }}
+                  className={`card-flip-inner${flipped ? ' is-flipped' : ''}`}
+                  style={{ minHeight: 160 }}
                 >
-                  {current.number}
-                </div>
-              )}
+                  {/* Front face */}
+                  <div
+                    className="card-face"
+                    style={{
+                      background: 'var(--card-front)',
+                      padding: '24px 16px',
+                    }}
+                  >
+                    {frontIsNumber ? (
+                      <div
+                        style={{
+                          fontSize: 'clamp(48px, 14vw, 72px)',
+                          fontWeight: 800,
+                          lineHeight: 1,
+                          color: getNumberColor(current.number),
+                        }}
+                      >
+                        {current.number}
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: 12,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        {neighborsOf(current).map((n) => (
+                          <span
+                            key={n}
+                            style={{
+                              fontSize: 'clamp(28px, 8vw, 40px)',
+                              fontWeight: 800,
+                              lineHeight: 1,
+                              color: getNumberColor(n),
+                            }}
+                          >
+                            {n}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
-              {showNeighbors && (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 12,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}
-                >
-                  {neighborsOf(current).map((n) => (
-                    <span
-                      key={n}
-                      style={{
-                        fontSize: 'clamp(28px, 8vw, 40px)',
-                        fontWeight: 800,
-                        lineHeight: 1,
-                        color: getNumberColor(n),
-                      }}
-                    >
-                      {n}
-                    </span>
-                  ))}
+                  {/* Back face */}
+                  <div
+                    className="card-face card-face-back"
+                    style={{
+                      background: 'var(--card-back)',
+                      padding: '24px 16px',
+                    }}
+                  >
+                    {!frontIsNumber ? (
+                      <div
+                        style={{
+                          fontSize: 'clamp(48px, 14vw, 72px)',
+                          fontWeight: 800,
+                          lineHeight: 1,
+                          color: getNumberColor(current.number),
+                        }}
+                      >
+                        {current.number}
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: 12,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        {neighborsOf(current).map((n) => (
+                          <span
+                            key={n}
+                            style={{
+                              fontSize: 'clamp(28px, 8vw, 40px)',
+                              fontWeight: 800,
+                              lineHeight: 1,
+                              color: getNumberColor(n),
+                            }}
+                          >
+                            {n}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -361,6 +451,7 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
                 <button
                   type="button"
                   onClick={() => goNext('repeat')}
+                  disabled={!!exitDir || busy.current}
                   className="btn-repeat"
                   style={{
                     padding: 14,
@@ -379,12 +470,13 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
                 <button
                   type="button"
                   onClick={undo}
-                  disabled={history.length === 0}
+                  disabled={history.length === 0 || !!exitDir}
                   style={{
                     alignSelf: 'flex-start',
                     background: 'none',
                     border: 'none',
-                    color: history.length === 0 ? 'var(--text-muted)' : 'var(--primary)',
+                    color:
+                      history.length === 0 ? 'var(--text-muted)' : 'var(--primary)',
                     opacity: history.length === 0 ? 0.35 : 1,
                     cursor: history.length === 0 ? 'default' : 'pointer',
                     padding: '6px 4px',
@@ -396,6 +488,7 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
               <button
                 type="button"
                 onClick={() => goNext('know')}
+                disabled={!!exitDir || busy.current}
                 className="btn-know"
                 style={{
                   padding: 14,

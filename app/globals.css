@@ -90,7 +90,6 @@ body {
 	box-sizing: border-box;
 }
 
-/* When ad is present, shell fills remaining viewport */
 .app-root {
 	min-height: 100dvh;
 	display: flex;
@@ -127,7 +126,6 @@ body {
 	backdrop-filter: blur(12px);
 }
 
-/* Header sticks below ad when ad exists */
 .app-root:has(.ad-banner) .page-header {
 	top: 0;
 }
@@ -500,6 +498,105 @@ body {
 
 .pop {
 	animation: pop 0.35s ease;
+}
+
+/* -------- Card flip (3D) -------- */
+.card-flip-scene {
+	perspective: 1200px;
+	width: 100%;
+	height: 100%;
+}
+
+.card-flip-inner {
+	position: relative;
+	width: 100%;
+	height: 100%;
+	transform-style: preserve-3d;
+	transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-flip-inner.is-flipped {
+	transform: rotateY(180deg);
+}
+
+.card-face {
+	position: absolute;
+	inset: 0;
+	backface-visibility: hidden;
+	-webkit-backface-visibility: hidden;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: inherit;
+	box-sizing: border-box;
+}
+
+.card-face-back {
+	transform: rotateY(180deg);
+}
+
+/* -------- Swipe exit / undo enter -------- */
+.card-exit-left {
+	animation: cardExitLeft 0.32s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.card-exit-right {
+	animation: cardExitRight 0.32s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.card-enter-left {
+	animation: cardEnterLeft 0.35s cubic-bezier(0, 0, 0.2, 1) forwards;
+}
+
+.card-enter-right {
+	animation: cardEnterRight 0.35s cubic-bezier(0, 0, 0.2, 1) forwards;
+}
+
+@keyframes cardExitLeft {
+	to {
+		transform: translateX(-120%) rotate(-12deg);
+		opacity: 0;
+	}
+}
+
+@keyframes cardExitRight {
+	to {
+		transform: translateX(120%) rotate(12deg);
+		opacity: 0;
+	}
+}
+
+@keyframes cardEnterLeft {
+	from {
+		transform: translateX(-80%) rotate(-8deg);
+		opacity: 0;
+	}
+
+	to {
+		transform: translateX(0) rotate(0);
+		opacity: 1;
+	}
+}
+
+@keyframes cardEnterRight {
+	from {
+		transform: translateX(80%) rotate(8deg);
+		opacity: 0;
+	}
+
+	to {
+		transform: translateX(0) rotate(0);
+		opacity: 1;
+	}
+}
+
+/* Swipe drag tint hints */
+.card-swipe-hint-left {
+	box-shadow: inset 0 0 0 3px rgba(248, 113, 113, 0.45);
+}
+
+.card-swipe-hint-right {
+	box-shadow: inset 0 0 0 3px rgba(52, 211, 153, 0.45);
 }
 
 .chip {
