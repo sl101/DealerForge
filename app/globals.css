@@ -454,6 +454,20 @@ body {
 		0 10px 30px rgba(239, 68, 68, 0.25) !important;
 }
 
+.card-fade-in {
+	animation: cardFadeIn 0.2s ease-out forwards;
+}
+
+@keyframes cardFadeIn {
+	from {
+		opacity: 0;
+	}
+
+	to {
+		opacity: 1;
+	}
+}
+
 @keyframes shake {
 
 	0%,
