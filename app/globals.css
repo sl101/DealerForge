@@ -49,17 +49,13 @@
 
 html {
 	height: 100%;
-	overflow: hidden;
 	overscroll-behavior: none;
 }
 
 body {
 	margin: 0;
-	height: 100%;
 	min-height: 100%;
 	min-height: 100dvh;
-	max-height: 100dvh;
-	overflow: hidden;
 	background-color: var(--bg);
 	color: var(--text);
 	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -67,9 +63,10 @@ body {
 	-webkit-text-size-adjust: 100%;
 	text-size-adjust: 100%;
 	overscroll-behavior: none;
+	/* no overflow:hidden — page can scroll when needed */
 }
 
-/* -------- Ad banner (guests) — always top-aligned -------- */
+/* -------- Ad banner — safe-area only here (avoid double “notch” gap) -------- */
 .ad-banner {
 	position: sticky;
 	top: 0;
@@ -77,8 +74,7 @@ body {
 	right: 0;
 	z-index: 100;
 	width: 100%;
-	min-height: var(--ad-height);
-	height: var(--ad-height);
+	min-height: calc(var(--ad-height) + var(--safe-top));
 	flex-shrink: 0;
 	display: flex;
 	align-items: center;
@@ -96,11 +92,8 @@ body {
 
 .app-root {
 	min-height: 100dvh;
-	max-height: 100dvh;
-	height: 100dvh;
 	display: flex;
 	flex-direction: column;
-	overflow: hidden;
 	overscroll-behavior: none;
 }
 
@@ -108,18 +101,16 @@ body {
 .app-root>.app-shell {
 	flex: 1;
 	min-height: 0;
-	overflow: hidden;
 }
 
 .page-shell {
-	min-height: 0;
-	height: 100%;
-	max-height: 100%;
+	min-height: 100dvh;
 	width: 100%;
 	max-width: 100%;
 	padding-inline: 15px;
 	overflow-x: hidden;
-	overflow-y: hidden;
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
 	overscroll-behavior: none;
 	touch-action: manipulation;
 	background-color: var(--bg);
@@ -129,18 +120,30 @@ body {
 	flex-direction: column;
 }
 
-/* Explicit lock (home, trainers, etc.) */
-.no-page-scroll {
-	height: 100%;
-	max-height: 100%;
-	overflow: hidden !important;
-	overscroll-behavior: none;
-	touch-action: manipulation;
+/*
+ * Portrait only: lock whole-page swipe for keypad / fixed layouts.
+ * Landscape: allow full-screen scroll so bottom content is reachable.
+ */
+@media (orientation: portrait) {
+	.no-page-scroll {
+		height: 100dvh;
+		max-height: 100dvh;
+		overflow: hidden;
+	}
 }
 
-/* Rare screens that must scroll as a page (e.g. long legal text) */
+@media (orientation: landscape) {
+	.no-page-scroll {
+		height: auto;
+		max-height: none;
+		min-height: 100dvh;
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+}
+
 .page-shell.allow-page-scroll {
-	overflow-y: auto !important;
+	overflow-y: auto;
 	-webkit-overflow-scrolling: touch;
 }
 
@@ -190,14 +193,11 @@ body {
 }
 
 .app-shell {
-	min-height: 0;
-	height: 100%;
-	max-height: 100%;
+	min-height: 100dvh;
 	width: 100%;
 	max-width: 100vw;
 	overflow-x: hidden;
-	overflow-y: hidden;
-	padding-top: var(--safe-top);
+	/* Do NOT add padding-top: safe-top here if AdBanner already uses it */
 	padding-bottom: var(--safe-bottom);
 	padding-left: var(--safe-left);
 	padding-right: var(--safe-right);
@@ -235,7 +235,6 @@ body {
 	display: block;
 }
 
-/* Compact card above numeric keypad */
 .keypad-task-card {
 	width: 100%;
 	box-sizing: border-box;
@@ -264,15 +263,31 @@ body {
 	margin-right: auto;
 }
 
-/* Tables mode: lock page, scroll only inside card */
+/* Tables: page locked in portrait; only card scrolls */
 .tables-page {
-	overflow: hidden !important;
 	overscroll-behavior: none;
 	touch-action: manipulation;
 }
 
+@media (orientation: portrait) {
+	.tables-page {
+		height: 100dvh;
+		max-height: 100dvh;
+		overflow: hidden !important;
+	}
+}
+
+@media (orientation: landscape) {
+	.tables-page {
+		height: auto;
+		max-height: none;
+		min-height: 100dvh;
+		overflow-y: auto;
+	}
+}
+
 .tables-page .page-inner {
-	overflow: hidden;
+	min-height: 0;
 }
 
 .tables-scroll-card {
@@ -294,7 +309,6 @@ body {
 	flex-direction: column;
 	flex: 1;
 	min-height: 0;
-	overflow: hidden;
 }
 
 .play-with-keypad .play-main {
@@ -309,11 +323,7 @@ body {
 
 @media (orientation: landscape) and (max-height: 560px) {
 	.ad-banner {
-		position: sticky;
-		top: 0;
-		z-index: 100;
-		min-height: 36px;
-		height: 36px;
+		min-height: calc(36px + var(--safe-top));
 		font-size: 11px;
 	}
 
@@ -322,26 +332,18 @@ body {
 		padding-bottom: 4px;
 	}
 
+	/* Prefer whole-page scroll in landscape over nested traps */
 	.play-with-keypad {
-		flex-direction: row !important;
-		align-items: stretch !important;
-		overflow: hidden;
+		flex-direction: column !important;
+		overflow: visible;
+		min-height: auto;
 	}
 
 	.play-with-keypad .play-main {
-		flex: 1 1 55%;
-		min-width: 0;
+		flex: none;
+		overflow: visible;
+		padding-bottom: 12px !important;
 		padding-top: 8px !important;
-		padding-bottom: 8px !important;
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
-		overflow-y: auto;
-		overscroll-behavior: contain;
-	}
-
-	.play-with-keypad .page-inner {
-		max-width: none;
 	}
 
 	.play-with-keypad .keypad-dock {
@@ -349,56 +351,39 @@ body {
 		left: auto !important;
 		right: auto !important;
 		bottom: auto !important;
-		flex: 0 0 min(42%, 300px);
-		max-width: 300px;
-		width: 42%;
-		height: auto;
-		align-self: stretch;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: 6px 8px !important;
-		padding-bottom: 8px !important;
+		width: 100%;
+		max-width: 480px;
+		margin: 0 auto;
+		padding: 8px 20px 16px !important;
 		pointer-events: auto;
-		border-left: 1px solid var(--border);
-		background: color-mix(in srgb, var(--bg) 96%, transparent);
+		border-left: none;
+		background: transparent;
 	}
 
 	.play-with-keypad .keypad-dock-inner {
 		width: 100%;
-		max-width: 260px;
-		margin: 0;
-		pointer-events: auto;
+		max-width: 360px;
+		margin: 0 auto;
 	}
 
 	.play-with-keypad .task-card {
 		padding: 10px 12px !important;
 		margin-bottom: 8px !important;
 		border-radius: 16px;
-		flex-shrink: 1;
-		max-height: calc(100dvh - 100px);
-		overflow: hidden;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.play-with-keypad .task-card-title {
-		font-size: 13px !important;
-		margin-bottom: 6px !important;
+		max-height: none;
+		overflow: visible;
 	}
 
 	.play-with-keypad .task-card .combo-diagram,
 	.play-with-keypad .task-card svg {
-		max-width: min(180px, 48vh, 100%) !important;
-		max-height: min(180px, 52vh) !important;
+		max-width: min(200px, 50vh, 100%) !important;
+		max-height: min(200px, 50vh) !important;
 	}
 
 	.play-with-keypad .keypad-task-card {
-		height: min(42vh, 120px) !important;
-		max-height: 120px !important;
-		min-height: 72px !important;
+		height: min(36vh, 140px) !important;
+		max-height: 140px !important;
+		min-height: 80px !important;
 		padding: 10px 12px !important;
 	}
 
@@ -406,64 +391,19 @@ body {
 		padding: 10px 12px !important;
 		font-size: 18px !important;
 		margin-bottom: 6px !important;
-		max-width: 220px;
 	}
 
 	.study-card {
 		height: auto !important;
-		min-height: 120px !important;
-		max-height: min(52vh, 220px) !important;
+		min-height: 100px !important;
+		max-height: min(48vh, 200px) !important;
 		padding: 8px 10px !important;
 	}
 
 	.study-card .combo-diagram,
 	.study-card svg {
-		max-width: min(160px, 48vh) !important;
-		max-height: min(160px, 48vh) !important;
-	}
-}
-
-@media (orientation: landscape) and (max-height: 420px) {
-	.ad-banner {
-		min-height: 32px;
-		height: 32px;
-		font-size: 10px;
-	}
-
-	.play-with-keypad .task-card {
-		padding: 6px 10px !important;
-		max-height: calc(100dvh - 80px);
-	}
-
-	.play-with-keypad .task-card .combo-diagram,
-	.play-with-keypad .task-card svg {
-		max-width: min(140px, 55vh) !important;
-		max-height: min(140px, 58vh) !important;
-	}
-
-	.play-with-keypad .task-card-title {
-		font-size: 12px !important;
-		margin-bottom: 4px !important;
-	}
-
-	.play-with-keypad .keypad-task-card {
-		height: min(38vh, 96px) !important;
-		max-height: 96px !important;
-		min-height: 64px !important;
-		padding: 8px 10px !important;
-	}
-
-	.study-card {
-		height: auto !important;
-		min-height: 120px !important;
-		max-height: min(52vh, 220px) !important;
-		padding: 8px 10px !important;
-	}
-
-	.study-card .combo-diagram,
-	.study-card svg {
-		max-width: min(160px, 48vh) !important;
-		max-height: min(160px, 48vh) !important;
+		max-width: min(160px, 45vh) !important;
+		max-height: min(160px, 45vh) !important;
 	}
 }
 
@@ -597,7 +537,6 @@ body {
 	animation: pop 0.35s ease;
 }
 
-/* -------- Card flip (3D) -------- */
 .card-flip-scene {
 	perspective: 1200px;
 	width: 100%;
@@ -632,7 +571,6 @@ body {
 	transform: rotateY(180deg);
 }
 
-/* -------- Swipe exit / undo enter -------- */
 .card-exit-left {
 	animation: cardExitLeft 0.32s cubic-bezier(0.4, 0, 1, 1) forwards;
 }
@@ -687,7 +625,6 @@ body {
 	}
 }
 
-/* Swipe drag tint hints */
 .card-swipe-hint-left {
 	box-shadow: inset 0 0 0 3px rgba(248, 113, 113, 0.45);
 }

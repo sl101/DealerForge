@@ -40,7 +40,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="page-shell no-page-scroll">
+    <div className="page-shell">
       <header className="page-header">
         <div
           className="page-inner"
@@ -76,17 +76,14 @@ export default function Home() {
         </div>
       </header>
 
-      <main
-        className="page-inner"
-        style={{
-          flex: 1,
-          minHeight: 0,
-          overflowY: 'auto',
-          overscrollBehavior: 'contain',
-          paddingTop: 32,
-          paddingBottom: 40,
-        }}
-      >
+			<main
+  className="page-inner"
+  style={{
+    flex: 1,
+    paddingTop: 32,
+    paddingBottom: 40,
+  }}
+>
         <h2
           style={{
             fontSize: 28,

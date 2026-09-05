@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { MULTIPLIERS, tableFor, Multiplier } from '@/lib/multiplication';
 
@@ -12,30 +12,8 @@ export default function TablesView({ onBack }: TablesViewProps) {
   const [active, setActive] = useState<Multiplier>(5);
   const rows = tableFor(active);
 
-  // Lock page scroll while this view is open
-  useEffect(() => {
-    const prevHtml = document.documentElement.style.overflow;
-    const prevBody = document.body.style.overflow;
-    document.documentElement.style.overflow = 'hidden';
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.documentElement.style.overflow = prevHtml;
-      document.body.style.overflow = prevBody;
-    };
-  }, []);
-
   return (
-    <div
-      className="page-shell tables-page"
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100dvh',
-        maxHeight: '100dvh',
-        overflow: 'hidden',
-        position: 'relative',
-      }}
-    >
+    <div className="page-shell tables-page">
       <header className="page-header" style={{ flexShrink: 0 }}>
         <div
           className="page-inner"
@@ -68,9 +46,8 @@ export default function TablesView({ onBack }: TablesViewProps) {
         style={{
           flex: 1,
           minHeight: 0,
-          maxHeight: '100%',
           paddingTop: 16,
-          paddingBottom: 28,
+          paddingBottom: 60,
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
@@ -114,7 +91,7 @@ export default function TablesView({ onBack }: TablesViewProps) {
           style={{
             flex: '1 1 0',
             minHeight: 0,
-            marginBottom: 8,
+            marginBottom: 16,
             background: 'var(--card-front)',
             borderRadius: 'var(--radius-card)',
             color: '#0f172a',
