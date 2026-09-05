@@ -64,6 +64,19 @@ export default function StudyMode({ onBack }: StudyModeProps) {
   const midBase = WHEEL_ORDER.length;
 
   useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.overflow;
+    const prevBody = body.style.overflow;
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    return () => {
+      html.style.overflow = prevHtml;
+      body.style.overflow = prevBody;
+    };
+  }, []);
+
+  useEffect(() => {
     const strip = stripRef.current;
     if (!strip) return;
 
@@ -181,7 +194,7 @@ export default function StudyMode({ onBack }: StudyModeProps) {
   );
 
   return (
-    <div className="page-shell">
+    <div className="page-shell no-page-scroll">
       <header className="page-header">
         <div
           className="page-inner"
@@ -194,6 +207,7 @@ export default function StudyMode({ onBack }: StudyModeProps) {
           }}
         >
           <button
+            type="button"
             onClick={onBack}
             style={{
               background: 'none',
@@ -206,10 +220,18 @@ export default function StudyMode({ onBack }: StudyModeProps) {
             <ArrowLeft size={20} />
           </button>
           <div className="segmented" style={{ maxWidth: 160, margin: '0 auto', width: '100%' }}>
-            <button className={depth === '1/1' ? 'active' : ''} onClick={() => setDepth('1/1')}>
+            <button
+              type="button"
+              className={depth === '1/1' ? 'active' : ''}
+              onClick={() => setDepth('1/1')}
+            >
               1/1
             </button>
-            <button className={depth === '2/2' ? 'active' : ''} onClick={() => setDepth('2/2')}>
+            <button
+              type="button"
+              className={depth === '2/2' ? 'active' : ''}
+              onClick={() => setDepth('2/2')}
+            >
               2/2
             </button>
           </div>
@@ -217,19 +239,34 @@ export default function StudyMode({ onBack }: StudyModeProps) {
         </div>
       </header>
 
-      <main className="page-inner" style={{ flex: 1, paddingTop: 24, paddingBottom: 32 }}>
+      <main
+        className="page-inner"
+        style={{
+          flex: 1,
+          minHeight: 0,
+          paddingTop: 16,
+          paddingBottom: 24,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
         <div
           key={spinKey}
-          className="study-card-spin"
+          className="study-card-spin keypad-task-card"
           style={{
             width: '100%',
             boxSizing: 'border-box',
             background: 'var(--card-front)',
             borderRadius: 'var(--radius-card)',
-            padding: '40px 16px',
+            padding: '16px 12px',
             textAlign: 'center',
             boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
-            marginBottom: 28,
+            marginBottom: 16,
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
           <div
@@ -238,11 +275,11 @@ export default function StudyMode({ onBack }: StudyModeProps) {
               alignItems: 'center',
               justifyContent: 'center',
               flexWrap: 'wrap',
-              gap: 8,
+              gap: 6,
             }}
           >
             {cardNumbers.map((n) =>
-              renderCardNum(n, n === selected ? 56 : 28, n === selected)
+              renderCardNum(n, n === selected ? 48 : 24, n === selected)
             )}
           </div>
         </div>
@@ -252,7 +289,8 @@ export default function StudyMode({ onBack }: StudyModeProps) {
             textAlign: 'center',
             fontSize: 13,
             color: 'var(--text-muted)',
-            marginBottom: 12,
+            marginBottom: 10,
+            flexShrink: 0,
           }}
         >
           Drag or scroll · tap a number
@@ -271,15 +309,19 @@ export default function StudyMode({ onBack }: StudyModeProps) {
             display: 'flex',
             gap: GAP,
             overflowX: 'auto',
-            padding: '16px 0',
+            overflowY: 'hidden',
+            padding: '12px 0',
             WebkitOverflowScrolling: 'touch',
             scrollbarWidth: 'none',
             msOverflowStyle: 'none',
             cursor: 'grab',
-            maskImage: 'linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)',
+            maskImage:
+              'linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)',
             touchAction: 'pan-x',
             width: '100%',
             boxSizing: 'border-box',
+            flexShrink: 0,
+            overscrollBehavior: 'contain',
           }}
         >
           {loop.map((n, i) => {

@@ -49,13 +49,17 @@
 
 html {
 	height: 100%;
+	overflow: hidden;
 	overscroll-behavior: none;
 }
 
 body {
 	margin: 0;
+	height: 100%;
 	min-height: 100%;
 	min-height: 100dvh;
+	max-height: 100dvh;
+	overflow: hidden;
 	background-color: var(--bg);
 	color: var(--text);
 	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -92,23 +96,32 @@ body {
 
 .app-root {
 	min-height: 100dvh;
+	max-height: 100dvh;
+	height: 100dvh;
 	display: flex;
 	flex-direction: column;
+	overflow: hidden;
+	overscroll-behavior: none;
 }
 
 .app-root>.page-shell,
 .app-root>.app-shell {
 	flex: 1;
 	min-height: 0;
+	overflow: hidden;
 }
 
 .page-shell {
-	min-height: 100%;
-	min-height: 100dvh;
+	min-height: 0;
+	height: 100%;
+	max-height: 100%;
 	width: 100%;
 	max-width: 100%;
 	padding-inline: 15px;
 	overflow-x: hidden;
+	overflow-y: hidden;
+	overscroll-behavior: none;
+	touch-action: manipulation;
 	background-color: var(--bg);
 	color: var(--text);
 	box-sizing: border-box;
@@ -116,10 +129,26 @@ body {
 	flex-direction: column;
 }
 
+/* Explicit lock (home, trainers, etc.) */
+.no-page-scroll {
+	height: 100%;
+	max-height: 100%;
+	overflow: hidden !important;
+	overscroll-behavior: none;
+	touch-action: manipulation;
+}
+
+/* Rare screens that must scroll as a page (e.g. long legal text) */
+.page-shell.allow-page-scroll {
+	overflow-y: auto !important;
+	-webkit-overflow-scrolling: touch;
+}
+
 .page-header {
 	position: sticky;
 	top: 0;
 	z-index: 50;
+	flex-shrink: 0;
 	padding-inline: 15px;
 	background-color: color-mix(in srgb, var(--bg) 92%, transparent);
 	border-bottom: 1px solid var(--border);
@@ -161,11 +190,13 @@ body {
 }
 
 .app-shell {
-	min-height: 100%;
-	min-height: 100dvh;
+	min-height: 0;
+	height: 100%;
+	max-height: 100%;
 	width: 100%;
 	max-width: 100vw;
 	overflow-x: hidden;
+	overflow-y: hidden;
 	padding-top: var(--safe-top);
 	padding-bottom: var(--safe-bottom);
 	padding-left: var(--safe-left);
@@ -202,6 +233,16 @@ body {
 	margin-left: auto;
 	margin-right: auto;
 	display: block;
+}
+
+/* Compact card above numeric keypad */
+.keypad-task-card {
+	width: 100%;
+	box-sizing: border-box;
+	height: min(28dvh, 160px);
+	max-height: 160px;
+	min-height: 100px;
+	overflow: hidden;
 }
 
 .answer-input {
@@ -253,13 +294,16 @@ body {
 	flex-direction: column;
 	flex: 1;
 	min-height: 0;
+	overflow: hidden;
 }
 
 .play-with-keypad .play-main {
 	flex: 1;
 	min-height: 0;
+	overflow-x: hidden;
 	overflow-y: auto;
 	-webkit-overflow-scrolling: touch;
+	overscroll-behavior: contain;
 	padding-bottom: calc(22vh + 28px);
 }
 
@@ -293,6 +337,7 @@ body {
 		flex-direction: column;
 		justify-content: center;
 		overflow-y: auto;
+		overscroll-behavior: contain;
 	}
 
 	.play-with-keypad .page-inner {
@@ -350,6 +395,13 @@ body {
 		max-height: min(180px, 52vh) !important;
 	}
 
+	.play-with-keypad .keypad-task-card {
+		height: min(42vh, 120px) !important;
+		max-height: 120px !important;
+		min-height: 72px !important;
+		padding: 10px 12px !important;
+	}
+
 	.play-with-keypad .answer-input {
 		padding: 10px 12px !important;
 		font-size: 18px !important;
@@ -392,6 +444,13 @@ body {
 	.play-with-keypad .task-card-title {
 		font-size: 12px !important;
 		margin-bottom: 4px !important;
+	}
+
+	.play-with-keypad .keypad-task-card {
+		height: min(38vh, 96px) !important;
+		max-height: 96px !important;
+		min-height: 64px !important;
+		padding: 8px 10px !important;
 	}
 
 	.study-card {

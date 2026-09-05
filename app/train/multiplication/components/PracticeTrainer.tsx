@@ -44,6 +44,20 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
     };
   }, []);
 
+  // Lock document scroll on this screen
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.overflow;
+    const prevBody = body.style.overflow;
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    return () => {
+      html.style.overflow = prevHtml;
+      body.style.overflow = prevBody;
+    };
+  }, []);
+
   const showFeedback = (type: 'correct' | 'wrong') => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(type);
@@ -110,7 +124,9 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
       }, 500);
     } else {
       setStreak(0);
-      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([40, 30, 40]);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate([40, 30, 40]);
+      }
       showFeedback('wrong');
       setTimeout(() => {
         setAnswer('');
@@ -122,7 +138,7 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
 
   if (!started) {
     return (
-      <div className="page-shell">
+      <div className="page-shell no-page-scroll">
         <header className="page-header">
           <div
             className="page-inner"
@@ -224,12 +240,12 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
     cardFlash === 'correct'
       ? 'pop card-glow-correct'
       : cardFlash === 'wrong'
-      ? 'shake card-glow-wrong'
-      : '';
+        ? 'shake card-glow-wrong'
+        : '';
 
   return (
     <div
-      className="page-shell"
+      className="page-shell no-page-scroll"
       style={{ display: 'flex', flexDirection: 'column', height: '100dvh' }}
     >
       <header className="page-header">
@@ -264,20 +280,22 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
       </header>
 
       <div className="play-with-keypad">
-        <main className="play-main page-inner" style={{ paddingTop: 24 }}>
+        <main className="play-main page-inner" style={{ paddingTop: 16 }}>
           {current && (
             <>
               <div
-                className={cardClass}
+                className={`keypad-task-card ${cardClass}`}
                 style={{
                   position: 'relative',
                   background: 'var(--card-front)',
                   borderRadius: 'var(--radius-card)',
-                  padding: '36px 18px',
+                  padding: '20px 16px',
                   textAlign: 'center',
-                  marginBottom: 16,
+                  marginBottom: 12,
                   boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
-                  minHeight: 120,
+                  height: 'min(28dvh, 160px)',
+                  maxHeight: 160,
+                  minHeight: 100,
                   boxSizing: 'border-box',
                   display: 'flex',
                   alignItems: 'center',
@@ -289,12 +307,12 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
                   <div
                     style={{
                       position: 'absolute',
-                      top: 12,
+                      top: 10,
                       left: 0,
                       right: 0,
                       textAlign: 'center',
                       fontWeight: 800,
-                      fontSize: 15,
+                      fontSize: 14,
                       letterSpacing: 0.5,
                       color: toast === 'correct' ? 'var(--success)' : 'var(--error)',
                       transform: toastAnim ? 'translateY(-18px)' : 'translateY(0)',
@@ -307,13 +325,20 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
                   </div>
                 )}
 
-                <div style={{ fontSize: 48, fontWeight: 800, color: '#0f172a' }}>
+                <div
+                  style={{
+                    fontSize: 'clamp(32px, 9vw, 44px)',
+                    fontWeight: 800,
+                    color: '#0f172a',
+                  }}
+                >
                   {current.multiplier} × {current.factor}
                 </div>
               </div>
 
               <input
                 ref={inputRef}
+                className="answer-input"
                 type="text"
                 readOnly
                 inputMode="none"
@@ -321,16 +346,19 @@ export default function PracticeTrainer({ onBack }: PracticeTrainerProps) {
                 placeholder="Answer"
                 style={{
                   width: '100%',
+                  maxWidth: 280,
                   boxSizing: 'border-box',
-                  padding: '16px',
-                  fontSize: 24,
+                  padding: '12px 16px',
+                  fontSize: 22,
                   fontWeight: 700,
                   textAlign: 'center',
-                  borderRadius: 16,
+                  borderRadius: 14,
                   border: '2px solid var(--border)',
                   background: 'rgba(255,255,255,0.05)',
                   color: 'white',
                   outline: 'none',
+                  margin: '0 auto 8px',
+                  display: 'block',
                 }}
               />
             </>

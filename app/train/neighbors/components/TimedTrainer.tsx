@@ -50,6 +50,19 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
     setLongestStreak(Number(localStorage.getItem(LONGEST_STREAK_KEY) || 0));
   }, []);
 
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.overflow;
+    const prevBody = body.style.overflow;
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    return () => {
+      html.style.overflow = prevHtml;
+      body.style.overflow = prevBody;
+    };
+  }, []);
+
   const startSession = () => {
     const shuffled = [...NEIGHBOR_CARDS].sort(() => Math.random() - 0.5);
     setCards(shuffled);
@@ -200,7 +213,7 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
 
   if (!isRunning && cards.length === 0) {
     return (
-      <div className="page-shell">
+      <div className="page-shell no-page-scroll">
         <header className="page-header">
           <div
             className="page-inner"
@@ -301,7 +314,7 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
   if (!isRunning && timeLeft === 0) {
     return (
       <div
-        className="page-shell"
+        className="page-shell no-page-scroll"
         style={{ alignItems: 'center', justifyContent: 'center', padding: 20 }}
       >
         {isNewRecord && (
@@ -360,6 +373,7 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
   if (!currentCard) return null;
 
   const cardClass = [
+    'keypad-task-card',
     feedback === 'correct' ? 'pop card-glow-correct' : '',
     shake ? 'shake card-glow-wrong' : '',
   ]
@@ -368,7 +382,7 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
 
   return (
     <div
-      className="page-shell"
+      className="page-shell no-page-scroll"
       style={{ display: 'flex', flexDirection: 'column', height: '100dvh' }}
     >
       <header className="page-header">
@@ -416,7 +430,6 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
 
       <div className="play-with-keypad">
         <main className="play-main page-inner" style={{ paddingTop: 12 }}>
-          {/* Label + Hint on one row — above card */}
           <div
             style={{
               display: 'flex',
@@ -466,12 +479,11 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
               boxSizing: 'border-box',
               background: 'var(--card-front)',
               borderRadius: 'var(--radius-card)',
-              padding: '20px 16px',
+              padding: '16px 12px',
               textAlign: 'center',
               marginBottom: 12,
               boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
               transition: 'box-shadow 0.2s',
-              minHeight: 96,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -480,7 +492,7 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
           >
             <div
               style={{
-                fontSize: 56,
+                fontSize: 'clamp(40px, 11vw, 52px)',
                 fontWeight: 800,
                 lineHeight: 1,
                 color: getNumberColor(currentCard.number),
@@ -504,8 +516,8 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
                 feedback === 'wrong'
                   ? '2px solid var(--error)'
                   : feedback === 'correct'
-                  ? '2px solid var(--success)'
-                  : '2px solid var(--border)',
+                    ? '2px solid var(--success)'
+                    : '2px solid var(--border)',
             }}
           />
         </main>
