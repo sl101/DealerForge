@@ -223,6 +223,30 @@ body {
 	margin-right: auto;
 }
 
+/* Tables mode: lock page, scroll only inside card */
+.tables-page {
+	overflow: hidden !important;
+	overscroll-behavior: none;
+	touch-action: manipulation;
+}
+
+.tables-page .page-inner {
+	overflow: hidden;
+}
+
+.tables-scroll-card {
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+	overscroll-behavior: contain;
+	-webkit-overflow-scrolling: touch;
+}
+
+.tables-scroll-card::-webkit-scrollbar {
+	display: none;
+	width: 0;
+	height: 0;
+}
+
 /* -------- Play + keypad -------- */
 .play-with-keypad {
 	display: flex;

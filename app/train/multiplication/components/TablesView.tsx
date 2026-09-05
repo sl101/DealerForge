@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { MULTIPLIERS, tableFor, Multiplier } from '@/lib/multiplication';
 
@@ -12,15 +12,28 @@ export default function TablesView({ onBack }: TablesViewProps) {
   const [active, setActive] = useState<Multiplier>(5);
   const rows = tableFor(active);
 
+  // Lock page scroll while this view is open
+  useEffect(() => {
+    const prevHtml = document.documentElement.style.overflow;
+    const prevBody = document.body.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.documentElement.style.overflow = prevHtml;
+      document.body.style.overflow = prevBody;
+    };
+  }, []);
+
   return (
     <div
-      className="page-shell"
+      className="page-shell tables-page"
       style={{
         display: 'flex',
         flexDirection: 'column',
         height: '100dvh',
         maxHeight: '100dvh',
         overflow: 'hidden',
+        position: 'relative',
       }}
     >
       <header className="page-header" style={{ flexShrink: 0 }}>
@@ -55,11 +68,13 @@ export default function TablesView({ onBack }: TablesViewProps) {
         style={{
           flex: 1,
           minHeight: 0,
+          maxHeight: '100%',
           paddingTop: 16,
-          paddingBottom: 24,
+          paddingBottom: 28,
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
+          boxSizing: 'border-box',
         }}
       >
         <div
@@ -94,19 +109,21 @@ export default function TablesView({ onBack }: TablesViewProps) {
           ))}
         </div>
 
-        {/* Only this block scrolls */}
         <div
+          className="tables-scroll-card"
           style={{
-            flex: 1,
+            flex: '1 1 0',
             minHeight: 0,
-            maxHeight: '100%',
+            marginBottom: 8,
             background: 'var(--card-front)',
             borderRadius: 'var(--radius-card)',
             color: '#0f172a',
             overflowY: 'auto',
+            overflowX: 'hidden',
             WebkitOverflowScrolling: 'touch',
             overscrollBehavior: 'contain',
             boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+            touchAction: 'pan-y',
           }}
         >
           {rows.map(({ factor, answer }) => (
