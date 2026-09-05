@@ -16,6 +16,7 @@ interface StudyTrainerProps {
 }
 
 type Action = 'know' | 'repeat';
+type MotionPhase = 'idle' | 'exit' | 'gap' | 'in';
 
 interface Snapshot {
   index: number;
@@ -24,9 +25,20 @@ interface Snapshot {
 }
 
 const SWIPE_THRESHOLD = 80;
-const EXIT_MS = 320;
+const EXIT_MS = 300;
+const GAP_MS = 50;
+const APPEAR_MS = 200;
 const ENTER_MS = 350;
-const CARD_HEIGHT_PORTRAIT = 340;
+const CARD_HEIGHT = '33dvh';
+
+const CARD_BOX: React.CSSProperties = {
+  width: '100%',
+  height: CARD_HEIGHT,
+  minHeight: 200,
+  maxHeight: 360,
+  marginBottom: 16,
+  flexShrink: 0,
+};
 
 export default function StudyTrainer({ onBack }: StudyTrainerProps) {
   const [deck, setDeck] = useState<StandardCombo[]>([]);
@@ -34,17 +46,19 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
   const [flipped, setFlipped] = useState(false);
   const [stats, setStats] = useState<Record<string, ComboStats>>({});
   const [history, setHistory] = useState<Snapshot[]>([]);
-  const [sessionSeen, setSessionSeen] = useState<Set<string>>(new Set());
 
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [exitDir, setExitDir] = useState<'left' | 'right' | null>(null);
   const [enterDir, setEnterDir] = useState<'left' | 'right' | null>(null);
+  const [phase, setPhase] = useState<MotionPhase>('idle');
+  const [cardKey, setCardKey] = useState(0);
 
   const startX = useRef(0);
   const startY = useRef(0);
   const locked = useRef(false);
   const busy = useRef(false);
+  const handled = useRef(false);
 
   useEffect(() => {
     setStats(loadComboStats());
@@ -53,7 +67,6 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
     setIndex(0);
     setFlipped(false);
     setHistory([]);
-    setSessionSeen(new Set());
   }, []);
 
   const current = deck[index] || null;
@@ -67,10 +80,8 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
   const applyNext = (action: Action) => {
     if (!current) return;
     setStats((prev) => updateComboStat(prev, current.id, action === 'know'));
-    setSessionSeen((prev) => new Set(prev).add(current.id));
     setFlipped(false);
     setDragX(0);
-    setExitDir(null);
 
     setIndex((i) => {
       if (i + 1 >= deck.length) {
@@ -82,40 +93,85 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
   };
 
   const goNext = (action: Action) => {
-    if (!current || busy.current || exitDir) return;
+    if (!current || busy.current) return;
     busy.current = true;
+    handled.current = true;
 
     setHistory((h) => [...h, { index, flipped, action }]);
+    setPhase('exit');
     setExitDir(action === 'know' ? 'right' : 'left');
-    setDragging(false);
+    setEnterDir(null);
     setDragX(0);
+    setDragging(false);
+    locked.current = false;
 
     window.setTimeout(() => {
+      setPhase('gap');
+      setExitDir(null);
       applyNext(action);
-      busy.current = false;
+
+      window.setTimeout(() => {
+        setCardKey((k) => k + 1);
+        setPhase('in');
+        window.setTimeout(() => {
+          setPhase('idle');
+          busy.current = false;
+          handled.current = false;
+        }, APPEAR_MS);
+      }, GAP_MS);
     }, EXIT_MS);
   };
 
   const undo = () => {
-    if (history.length === 0 || busy.current || exitDir) return;
+    if (history.length === 0 || busy.current) return;
     busy.current = true;
+    handled.current = true;
 
     const prev = history[history.length - 1];
     setHistory((h) => h.slice(0, -1));
+    setPhase('idle');
+    setExitDir(null);
     setEnterDir(prev.action === 'know' ? 'right' : 'left');
     setIndex(prev.index);
     setFlipped(prev.flipped);
     setDragX(0);
-    setExitDir(null);
+    setCardKey((k) => k + 1);
 
     window.setTimeout(() => {
       setEnterDir(null);
       busy.current = false;
+      handled.current = false;
     }, ENTER_MS);
   };
 
+  const endPointer = (clientX: number, clientY: number) => {
+    if (busy.current || handled.current || phase === 'exit') {
+      setDragging(false);
+      return;
+    }
+    const dx = clientX - startX.current;
+    const dy = clientY - startY.current;
+
+    if (locked.current && dx > SWIPE_THRESHOLD) {
+      goNext('know');
+      return;
+    }
+    if (locked.current && dx < -SWIPE_THRESHOLD) {
+      goNext('repeat');
+      return;
+    }
+    if (!locked.current && Math.abs(dx) < 12 && Math.abs(dy) < 12) {
+      setFlipped((f) => !f);
+    }
+    setDragX(0);
+    setDragging(false);
+    locked.current = false;
+  };
+
   const onPointerDown = (e: React.PointerEvent) => {
-    if (busy.current || exitDir || enterDir) return;
+    if (busy.current || phase !== 'idle' || enterDir) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    handled.current = false;
     startX.current = e.clientX;
     startY.current = e.clientY;
     locked.current = false;
@@ -128,7 +184,7 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragging || busy.current || exitDir) return;
+    if (!dragging || busy.current || phase !== 'idle' || handled.current) return;
     const dx = e.clientX - startX.current;
     const dy = e.clientY - startY.current;
     if (!locked.current) {
@@ -143,24 +199,8 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
     setDragX(dx);
   };
 
-  const onPointerUp = (e: React.PointerEvent) => {
-    if (busy.current || exitDir) return;
-    const dx = e.clientX - startX.current;
-    if (locked.current && dx > SWIPE_THRESHOLD) {
-      goNext('know');
-      return;
-    }
-    if (locked.current && dx < -SWIPE_THRESHOLD) {
-      goNext('repeat');
-      return;
-    }
-    if (Math.abs(dx) < 12 && Math.abs(e.clientY - startY.current) < 12) {
-      setFlipped((f) => !f);
-    }
-    setDragX(0);
-    setDragging(false);
-    locked.current = false;
-  };
+  const onPointerUp = (e: React.PointerEvent) => endPointer(e.clientX, e.clientY);
+  const onPointerCancel = (e: React.PointerEvent) => endPointer(e.clientX, e.clientY);
 
   if (!current) {
     return (
@@ -194,15 +234,24 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
         : 'transparent';
 
   const motionClass = [
-    exitDir === 'left' ? 'card-exit-left' : '',
-    exitDir === 'right' ? 'card-exit-right' : '',
+    phase === 'exit' && exitDir === 'left' ? 'card-exit-left' : '',
+    phase === 'exit' && exitDir === 'right' ? 'card-exit-right' : '',
     enterDir === 'left' ? 'card-enter-left' : '',
     enterDir === 'right' ? 'card-enter-right' : '',
+    phase === 'in' ? 'card-fade-in' : '',
     dragX > 40 ? 'card-swipe-hint-right' : '',
     dragX < -40 ? 'card-swipe-hint-left' : '',
   ]
     .filter(Boolean)
     .join(' ');
+
+  const faceShell: React.CSSProperties = {
+    background: 'var(--card-front)',
+    borderRadius: 'var(--radius-card)',
+    boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+    padding: 16,
+    overflow: 'hidden',
+  };
 
   return (
     <div
@@ -250,89 +299,71 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
           flexDirection: 'column',
         }}
       >
-        <div
-          className={`study-card task-card ${motionClass}`}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-          style={{
-            position: 'relative',
-            width: '100%',
-            height: CARD_HEIGHT_PORTRAIT,
-            minHeight: CARD_HEIGHT_PORTRAIT,
-            boxSizing: 'border-box',
-            marginBottom: 16,
-            padding: 0,
-            overflow: 'hidden',
-            transform:
-              exitDir || enterDir
-                ? undefined
-                : `translateX(${dragX}px) rotate(${rot}deg)`,
-            transition:
-              dragging || exitDir || enterDir ? 'none' : 'transform 0.2s ease-out',
-            touchAction: 'none',
-            userSelect: 'none',
-            cursor: 'grab',
-          }}
-        >
+        {phase === 'gap' ? (
+          <div style={CARD_BOX} aria-hidden />
+        ) : (
           <div
+            key={cardKey}
+            className={motionClass}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerCancel}
             style={{
-              position: 'absolute',
-              inset: 0,
-              background: glow,
-              pointerEvents: 'none',
-              zIndex: 2,
-              borderRadius: 'inherit',
+              ...CARD_BOX,
+              transform:
+                phase === 'exit' || enterDir
+                  ? undefined
+                  : `translateX(${dragX}px) rotate(${rot}deg)`,
+              transition:
+                dragging || phase === 'exit' || enterDir || phase === 'in'
+                  ? 'none'
+                  : 'transform 0.2s ease-out',
+              touchAction: 'none',
+              userSelect: 'none',
+              cursor: phase === 'idle' ? 'grab' : 'default',
             }}
-          />
-
-          <div
-            className="card-flip-scene"
-            style={{ height: '100%', minHeight: CARD_HEIGHT_PORTRAIT }}
           >
-            <div
-              className={`card-flip-inner${flipped ? ' is-flipped' : ''}`}
-              style={{ minHeight: CARD_HEIGHT_PORTRAIT }}
-            >
+            <div className="card-flip-scene" style={{ width: '100%', height: '100%' }}>
               <div
-                className="card-face"
-                style={{
-                  background: 'var(--card-front)',
-                  padding: 16,
-                }}
+                className={`card-flip-inner${flipped ? ' is-flipped' : ''}`}
+                style={{ height: '100%' }}
               >
-                <div className="combo-diagram">
-                  <ComboDiagram family={current.family} chips={current.chips} size={240} />
+                <div className="card-face" style={faceShell}>
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: phase === 'idle' ? glow : 'transparent',
+                      pointerEvents: 'none',
+                      borderRadius: 'inherit',
+                    }}
+                  />
+                  <div className="combo-diagram">
+                    <ComboDiagram family={current.family} chips={current.chips} size={240} />
+                  </div>
                 </div>
-              </div>
-              <div
-                className="card-face card-face-back"
-                style={{
-                  background: 'var(--card-back)',
-                  padding: 16,
-                }}
-              >
                 <div
-                  style={{
-                    fontSize: 56,
-                    fontWeight: 800,
-                    color: '#0f172a',
-                  }}
+                  className="card-face card-face-back"
+                  style={{ ...faceShell, background: 'var(--card-back)' }}
                 >
-                  {current.answer}
+                  <div style={{ fontSize: 56, fontWeight: 800, color: '#0f172a' }}>
+                    {current.answer}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <button
               type="button"
-              onClick={() => goNext('repeat')}
-              disabled={!!exitDir || busy.current}
+              onClick={() => {
+                if (!busy.current && !handled.current && phase === 'idle') goNext('repeat');
+              }}
+              disabled={phase !== 'idle' || busy.current}
               className="btn-repeat"
               style={{
                 padding: 15,
@@ -351,7 +382,7 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
             <button
               type="button"
               onClick={undo}
-              disabled={history.length === 0 || !!exitDir}
+              disabled={history.length === 0 || phase !== 'idle'}
               style={{
                 alignSelf: 'flex-start',
                 background: 'none',
@@ -367,8 +398,10 @@ export default function StudyTrainer({ onBack }: StudyTrainerProps) {
           </div>
           <button
             type="button"
-            onClick={() => goNext('know')}
-            disabled={!!exitDir || busy.current}
+            onClick={() => {
+              if (!busy.current && !handled.current && phase === 'idle') goNext('know');
+            }}
+            disabled={phase !== 'idle' || busy.current}
             className="btn-know"
             style={{
               padding: 15,

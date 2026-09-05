@@ -17,6 +17,7 @@ interface CardsTrainerProps {
 }
 
 type Action = 'know' | 'repeat';
+type MotionPhase = 'idle' | 'exit' | 'gap' | 'in';
 
 interface HistoryItem {
   index: number;
@@ -28,8 +29,19 @@ interface HistoryItem {
 }
 
 const THRESHOLD = 90;
-const EXIT_MS = 320;
+const EXIT_MS = 300;
+const GAP_MS = 50;
+const APPEAR_MS = 200;
 const ENTER_MS = 350;
+
+const CARD_BOX: React.CSSProperties = {
+  width: '100%',
+  height: '33dvh',
+  minHeight: 180,
+  maxHeight: 320,
+  position: 'relative',
+  zIndex: 3,
+};
 
 export default function CardsTrainer({ onBack }: CardsTrainerProps) {
   const [selected, setSelected] = useState<Multiplier[]>([...MULTIPLIERS]);
@@ -47,11 +59,13 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
   const [dragging, setDragging] = useState(false);
   const [exitDir, setExitDir] = useState<'left' | 'right' | null>(null);
   const [enterDir, setEnterDir] = useState<'left' | 'right' | null>(null);
+  const [phase, setPhase] = useState<MotionPhase>('idle');
 
   const startX = useRef(0);
   const startY = useRef(0);
   const locked = useRef(false);
   const busy = useRef(false);
+  const handled = useRef(false);
   const currentRef = useRef<Fact | null>(null);
 
   const current = deck[index] || null;
@@ -70,8 +84,10 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
     setDragX(0);
     setExitDir(null);
     setEnterDir(null);
+    setPhase('idle');
     setCardKey((k) => k + 1);
     busy.current = false;
+    handled.current = false;
   };
 
   useEffect(() => {
@@ -95,10 +111,7 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
 
   const applyNext = (action: Action) => {
     const card = currentRef.current;
-    if (!card) {
-      busy.current = false;
-      return;
-    }
+    if (!card) return;
 
     setStats((prev) => updateFactStat(prev, card.id, action === 'know'));
 
@@ -113,8 +126,6 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
     setAnswered((n) => n + 1);
     setFlipped(false);
     setDragX(0);
-    setDragging(false);
-    setExitDir(null);
 
     setIndex((i) => {
       const next = i + 1;
@@ -131,17 +142,13 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
       }
       return next;
     });
-
-    setCardKey((k) => k + 1);
-    busy.current = false;
   };
 
-  const finishExit = (dir: 'left' | 'right') => {
+  const goNext = (action: Action) => {
     const card = currentRef.current;
-    if (busy.current || !card || exitDir) return;
+    if (!card || busy.current) return;
     busy.current = true;
-
-    const action: Action = dir === 'right' ? 'know' : 'repeat';
+    handled.current = true;
 
     setHistory((h) => [
       ...h,
@@ -155,22 +162,41 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
       },
     ]);
 
-    setExitDir(dir);
-    setDragging(false);
+    setPhase('exit');
+    setExitDir(action === 'know' ? 'right' : 'left');
+    setEnterDir(null);
     setDragX(0);
+    setDragging(false);
+    locked.current = false;
 
     window.setTimeout(() => {
+      setPhase('gap');
+      setExitDir(null);
       applyNext(action);
+
+      window.setTimeout(() => {
+        setCardKey((k) => k + 1);
+        setPhase('in');
+        window.setTimeout(() => {
+          setPhase('idle');
+          busy.current = false;
+          handled.current = false;
+        }, APPEAR_MS);
+      }, GAP_MS);
     }, EXIT_MS);
   };
 
+  const finishExit = (dir: 'left' | 'right') => {
+    goNext(dir === 'right' ? 'know' : 'repeat');
+  };
+
   const undo = () => {
-    if (busy.current || history.length === 0 || exitDir) return;
+    if (busy.current || history.length === 0 || phase !== 'idle') return;
     busy.current = true;
+    handled.current = true;
 
     const prev = history[history.length - 1];
     setHistory((h) => h.slice(0, -1));
-
     setEnterDir(prev.action === 'know' ? 'right' : 'left');
     setDeck(prev.deck);
     setIndex(prev.index);
@@ -179,16 +205,44 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
     setFlipped(false);
     setDragX(0);
     setExitDir(null);
+    setPhase('idle');
     setCardKey((k) => k + 1);
 
     window.setTimeout(() => {
       setEnterDir(null);
       busy.current = false;
+      handled.current = false;
     }, ENTER_MS);
   };
 
+  const endPointer = (clientX: number, clientY: number) => {
+    if (busy.current || handled.current || phase === 'exit') {
+      setDragging(false);
+      return;
+    }
+    const dx = clientX - startX.current;
+    const dy = clientY - startY.current;
+
+    if (locked.current && dx > THRESHOLD) {
+      finishExit('right');
+      return;
+    }
+    if (locked.current && dx < -THRESHOLD) {
+      finishExit('left');
+      return;
+    }
+    if (!locked.current && Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+      setFlipped((f) => !f);
+    }
+    setDragX(0);
+    setDragging(false);
+    locked.current = false;
+  };
+
   const onPointerDown = (e: React.PointerEvent) => {
-    if (busy.current || exitDir || enterDir) return;
+    if (busy.current || phase !== 'idle' || enterDir) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    handled.current = false;
     startX.current = e.clientX;
     startY.current = e.clientY;
     locked.current = false;
@@ -201,7 +255,7 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragging || busy.current || exitDir) return;
+    if (!dragging || busy.current || phase !== 'idle' || handled.current) return;
     const dx = e.clientX - startX.current;
     const dy = e.clientY - startY.current;
     if (!locked.current) {
@@ -216,24 +270,8 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
     setDragX(dx);
   };
 
-  const onPointerUp = (e: React.PointerEvent) => {
-    if (busy.current || exitDir) return;
-    const dx = e.clientX - startX.current;
-    if (locked.current && dx > THRESHOLD) {
-      finishExit('right');
-      return;
-    }
-    if (locked.current && dx < -THRESHOLD) {
-      finishExit('left');
-      return;
-    }
-    if (Math.abs(dx) < 10 && Math.abs(e.clientY - startY.current) < 10) {
-      setFlipped((f) => !f);
-    }
-    setDragX(0);
-    setDragging(false);
-    locked.current = false;
-  };
+  const onPointerUp = (e: React.PointerEvent) => endPointer(e.clientX, e.clientY);
+  const onPointerCancel = (e: React.PointerEvent) => endPointer(e.clientX, e.clientY);
 
   if (!current) {
     return (
@@ -270,15 +308,24 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
   const labelOpacity = Math.min(1, Math.max(0, (abs - 20) / 50));
 
   const motionClass = [
-    exitDir === 'left' ? 'card-exit-left' : '',
-    exitDir === 'right' ? 'card-exit-right' : '',
+    phase === 'exit' && exitDir === 'left' ? 'card-exit-left' : '',
+    phase === 'exit' && exitDir === 'right' ? 'card-exit-right' : '',
     enterDir === 'left' ? 'card-enter-left' : '',
     enterDir === 'right' ? 'card-enter-right' : '',
+    phase === 'in' ? 'card-fade-in' : '',
     dragX > 40 ? 'card-swipe-hint-right' : '',
     dragX < -40 ? 'card-swipe-hint-left' : '',
   ]
     .filter(Boolean)
     .join(' ');
+
+  const faceShell: React.CSSProperties = {
+    background: 'var(--card-front)',
+    borderRadius: 'var(--radius-card)',
+    boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+    padding: 28,
+    overflow: 'hidden',
+  };
 
   return (
     <div className="page-shell">
@@ -383,78 +430,53 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
             </span>
           </div>
 
-          <div
-            key={cardKey}
-            className={motionClass}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={onPointerUp}
-            style={{
-              transform:
-                exitDir || enterDir
-                  ? undefined
-                  : `translateX(${dragX}px) rotate(${rotation}deg)`,
-              transition:
-                dragging || exitDir || enterDir ? 'none' : 'transform 0.25s ease-out',
-              cursor: 'grab',
-              userSelect: 'none',
-              WebkitUserSelect: 'none',
-              touchAction: 'none',
-              zIndex: 3,
-              position: 'relative',
-            }}
-          >
+          {phase === 'gap' ? (
+            <div style={CARD_BOX} aria-hidden />
+          ) : (
             <div
+              key={cardKey}
+              className={motionClass}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={onPointerCancel}
               style={{
-                background: 'var(--card-front)',
-                borderRadius: 'var(--radius-card)',
-                minHeight: 200,
-                height: 200,
-                position: 'relative',
-                overflow: 'hidden',
-                boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+                ...CARD_BOX,
+                transform:
+                  phase === 'exit' || enterDir
+                    ? undefined
+                    : `translateX(${dragX}px) rotate(${rotation}deg)`,
+                transition:
+                  dragging || phase === 'exit' || enterDir || phase === 'in'
+                    ? 'none'
+                    : 'transform 0.25s ease-out',
+                cursor: phase === 'idle' ? 'grab' : 'default',
+                userSelect: 'none',
+                touchAction: 'none',
               }}
             >
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  background: glow,
-                  pointerEvents: 'none',
-                  zIndex: 2,
-                  borderRadius: 'inherit',
-                }}
-              />
-
-              <div className="card-flip-scene" style={{ height: '100%', minHeight: 200 }}>
+              <div className="card-flip-scene" style={{ width: '100%', height: '100%' }}>
                 <div
                   className={`card-flip-inner${flipped ? ' is-flipped' : ''}`}
-                  style={{ minHeight: 200 }}
+                  style={{ height: '100%' }}
                 >
-                  <div
-                    className="card-face"
-                    style={{
-                      background: 'var(--card-front)',
-                      padding: 28,
-                    }}
-                  >
+                  <div className="card-face" style={faceShell}>
                     <div
                       style={{
-                        fontSize: 42,
-                        fontWeight: 800,
-                        color: '#0f172a',
+                        position: 'absolute',
+                        inset: 0,
+                        background: phase === 'idle' ? glow : 'transparent',
+                        pointerEvents: 'none',
+                        borderRadius: 'inherit',
                       }}
-                    >
+                    />
+                    <div style={{ fontSize: 42, fontWeight: 800, color: '#0f172a' }}>
                       {current.multiplier} × {current.factor}
                     </div>
                   </div>
                   <div
                     className="card-face card-face-back"
-                    style={{
-                      background: 'var(--card-back)',
-                      padding: 28,
-                    }}
+                    style={{ ...faceShell, background: 'var(--card-back)' }}
                   >
                     <div
                       style={{
@@ -469,15 +491,17 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <button
               type="button"
-              onClick={() => finishExit('left')}
-              disabled={!!exitDir || busy.current}
+              onClick={() => {
+                if (phase === 'idle' && !busy.current) finishExit('left');
+              }}
+              disabled={phase !== 'idle' || busy.current}
               className="btn-repeat"
               style={{
                 padding: 15,
@@ -496,8 +520,7 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
             <button
               type="button"
               onClick={undo}
-              disabled={history.length === 0 || !!exitDir}
-              title="Undo last"
+              disabled={history.length === 0 || phase !== 'idle'}
               style={{
                 alignSelf: 'flex-start',
                 background: 'none',
@@ -516,8 +539,10 @@ export default function CardsTrainer({ onBack }: CardsTrainerProps) {
 
           <button
             type="button"
-            onClick={() => finishExit('right')}
-            disabled={!!exitDir || busy.current}
+            onClick={() => {
+              if (phase === 'idle' && !busy.current) finishExit('right');
+            }}
+            disabled={phase !== 'idle' || busy.current}
             className="btn-know"
             style={{
               padding: 15,
