@@ -65,7 +65,6 @@ body {
 	overscroll-behavior: none;
 }
 
-/* -------- Ad banner — safe-area only here -------- */
 .ad-banner {
 	position: sticky;
 	top: 0;
@@ -119,7 +118,6 @@ body {
 	flex-direction: column;
 }
 
-/* Portrait: lock whole-page swipe for keypad layouts */
 @media (orientation: portrait) {
 	.no-page-scroll {
 		height: 100dvh;
@@ -195,7 +193,6 @@ body {
 	box-sizing: border-box;
 }
 
-/* -------- Task card + diagram -------- */
 .task-card {
 	width: 100%;
 	box-sizing: border-box;
@@ -276,7 +273,7 @@ body {
 	height: 0;
 }
 
-/* -------- Play + keypad (portrait) -------- */
+/* Portrait: column + fixed keypad */
 .play-with-keypad {
 	display: flex;
 	flex-direction: column;
@@ -294,7 +291,7 @@ body {
 	padding-bottom: calc(22vh + 28px);
 }
 
-/* -------- Landscape: scroll the whole screen -------- */
+/* -------- Landscape: content LEFT, keypad RIGHT + page scroll -------- */
 @media (orientation: landscape) {
 
 	html,
@@ -340,21 +337,34 @@ body {
 		padding-bottom: 4px;
 	}
 
+	/* Side-by-side: main | keypad */
 	.play-with-keypad {
 		display: flex !important;
-		flex-direction: column !important;
+		flex-direction: row !important;
+		align-items: stretch !important;
 		flex: none !important;
-		min-height: auto !important;
+		min-height: calc(100dvh - 56px - var(--ad-height, 0px)) !important;
 		height: auto !important;
 		overflow: visible !important;
 	}
 
 	.play-with-keypad .play-main {
-		flex: none !important;
-		min-height: auto !important;
-		overflow: visible !important;
+		flex: 1 1 55% !important;
+		min-width: 0 !important;
+		min-height: 0 !important;
+		overflow-x: hidden !important;
+		overflow-y: auto !important;
 		padding-top: 8px !important;
-		padding-bottom: 16px !important;
+		padding-bottom: 12px !important;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		-webkit-overflow-scrolling: touch;
+		overscroll-behavior: contain;
+	}
+
+	.play-with-keypad .page-inner {
+		max-width: none;
 	}
 
 	.play-with-keypad .keypad-dock {
@@ -362,39 +372,50 @@ body {
 		left: auto !important;
 		right: auto !important;
 		bottom: auto !important;
-		width: 100% !important;
-		max-width: 480px;
-		margin: 0 auto;
-		padding: 8px 16px 20px !important;
-		pointer-events: auto;
-		border-left: none !important;
-		background: transparent !important;
+		flex: 0 0 min(42%, 300px) !important;
+		width: 42% !important;
+		max-width: 300px !important;
+		height: auto !important;
+		align-self: stretch !important;
+		display: flex !important;
+		align-items: center !important;
+		justify-content: center !important;
+		padding: 6px 8px 12px !important;
+		pointer-events: auto !important;
+		border-left: 1px solid var(--border) !important;
+		background: color-mix(in srgb, var(--bg) 96%, transparent) !important;
 	}
 
 	.play-with-keypad .keypad-dock-inner {
 		width: 100%;
-		max-width: 360px;
-		margin: 0 auto;
+		max-width: 260px;
+		margin: 0;
+		pointer-events: auto;
 	}
 
 	.play-with-keypad .task-card {
 		padding: 10px 12px !important;
 		margin-bottom: 8px !important;
 		border-radius: 16px;
-		max-height: none;
-		overflow: visible;
+		flex-shrink: 1;
+		max-height: min(70vh, 280px);
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.play-with-keypad .task-card .combo-diagram,
 	.play-with-keypad .task-card svg {
-		max-width: min(200px, 50vh, 100%) !important;
-		max-height: min(200px, 50vh) !important;
+		max-width: min(180px, 48vh, 100%) !important;
+		max-height: min(180px, 52vh) !important;
 	}
 
 	.play-with-keypad .keypad-task-card {
-		height: min(36vh, 140px) !important;
-		max-height: 140px !important;
-		min-height: 80px !important;
+		height: min(36vh, 130px) !important;
+		max-height: 130px !important;
+		min-height: 72px !important;
 		padding: 10px 12px !important;
 	}
 
@@ -402,6 +423,7 @@ body {
 		padding: 10px 12px !important;
 		font-size: 18px !important;
 		margin-bottom: 6px !important;
+		max-width: 220px;
 	}
 
 	.study-card {
@@ -430,7 +452,22 @@ body {
 	}
 }
 
-/* Segmented control */
+/* Very short landscape */
+@media (orientation: landscape) and (max-height: 420px) {
+	.play-with-keypad .keypad-task-card {
+		height: min(32vh, 96px) !important;
+		max-height: 96px !important;
+		min-height: 64px !important;
+		padding: 6px 8px !important;
+	}
+
+	.play-with-keypad .task-card .combo-diagram,
+	.play-with-keypad .task-card svg {
+		max-width: min(140px, 55vh) !important;
+		max-height: min(140px, 58vh) !important;
+	}
+}
+
 .segmented {
 	display: flex;
 	background: rgba(255, 255, 255, 0.08);
