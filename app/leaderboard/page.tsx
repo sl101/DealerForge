@@ -1,11 +1,19 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
+type LeaderboardRow = {
+  id?: string;
+  user_id?: string;
+  score?: number;
+  tasks_solved?: number;
+  accuracy?: number;
+  profiles?: { display_name?: string | null } | null;
+};
+
 export default function LeaderboardPage() {
-  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,73 +22,165 @@ export default function LeaderboardPage() {
   }, []);
 
   const fetchLeaderboard = async () => {
+    setLoading(true);
+    setError(null);
+
     try {
-      const { data, error } = await supabase
+      let { data, error: queryError } = await supabase
         .from('leaderboard')
-        .select('*')
+        .select(
+          'id, user_id, score, tasks_solved, accuracy, profiles(display_name)'
+        )
         .order('score', { ascending: false })
         .limit(50);
 
-      if (error) {
-        console.error('Supabase error:', error);
-        setError(error.message);
-      } else {
-        setLeaderboard(data || []);
+      if (queryError) {
+        const fallback = await supabase
+          .from('leaderboard')
+          .select('id, user_id, score, tasks_solved, accuracy')
+          .order('score', { ascending: false })
+          .limit(50);
+
+        if (fallback.error) {
+          setError(fallback.error.message);
+          setLeaderboard([]);
+          return;
+        }
+        data = fallback.data as LeaderboardRow[];
       }
-    } catch (err: any) {
-      setError(err.message);
+
+      setLeaderboard((data as LeaderboardRow[]) || []);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setLoading(false);
     }
   };
 
+  const displayName = (entry: LeaderboardRow, index: number) => {
+    const name = entry.profiles?.display_name?.trim();
+    if (name) return name;
+    if (entry.user_id) return `Player ${entry.user_id.slice(0, 6)}`;
+    return `Player ${index + 1}`;
+  };
+
   return (
-    <div className="min-h-screen bg-[#1a1a2e] text-[#e0f2fe]">
-      <header className="glass sticky top-0 z-50 border-b border-white/10">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={() => window.history.back()} className="flex items-center gap-2 text-[#67e8f9]">
-            <ArrowLeft size={20} /> Back
-          </button>
-          <h1 className="text-2xl font-bold">Global Leaderboard</h1>
+    <div className="page-shell">
+      <header className="page-header">
+        <div
+          className="page-inner"
+          style={{ paddingTop: 16, paddingBottom: 16 }}
+        >
+          <h1
+            style={{
+              fontSize: 20,
+              fontWeight: 600,
+              margin: 0,
+              textAlign: 'center',
+              color: 'var(--text)',
+            }}
+          >
+            Global Leaderboard
+          </h1>
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        {loading && <p className="text-center py-20">Loading leaderboard...</p>}
-        
+      <main
+        className="page-inner"
+        style={{ flex: 1, paddingTop: 24, paddingBottom: 40 }}
+      >
+        {loading && (
+          <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '48px 0' }}>
+            Loading leaderboard...
+          </p>
+        )}
+
         {error && (
-          <div className="text-center py-20 text-red-400">
+          <div
+            className="glass"
+            style={{
+              borderRadius: 24,
+              padding: 24,
+              border: '1px solid var(--border)',
+              color: 'var(--error)',
+              textAlign: 'center',
+            }}
+          >
             Error: {error}
           </div>
         )}
 
         {!loading && !error && leaderboard.length === 0 && (
-          <p className="text-center py-20 text-white/60">
+          <div
+            className="glass"
+            style={{
+              borderRadius: 24,
+              padding: 32,
+              border: '1px solid var(--border)',
+              textAlign: 'center',
+              color: 'var(--text-muted)',
+            }}
+          >
             No results yet. Be the first on the leaderboard!
-          </p>
-        )}
-
-        {!loading && !error && leaderboard.length > 0 && (
-          <div className="space-y-4">
-            {leaderboard.map((entry, index) => (
-              <div key={entry.id || index} className="glass p-6 rounded-3xl flex items-center gap-6">
-                <div className="text-5xl font-bold w-16 text-[#67e8f9] text-center">
-                  #{index + 1}
-                </div>
-                <div className="flex-1">
-                  <div className="font-semibold">Player</div>
-                  <div className="text-sm text-white/60">
-                    {entry.tasks_solved || 0} tasks • {entry.accuracy || 0}%
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-3xl font-bold text-[#67e8f9]">{entry.score || 0}</div>
-                </div>
-              </div>
-            ))}
           </div>
         )}
-      </div>
+
+        {!loading &&
+          !error &&
+          leaderboard.map((entry, index) => (
+            <div
+              key={entry.id || entry.user_id || index}
+              className="glass"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 16,
+                borderRadius: 24,
+                padding: 20,
+                marginBottom: 12,
+                border: '1px solid var(--border)',
+              }}
+            >
+              <div
+                style={{
+                  width: 48,
+                  flexShrink: 0,
+                  textAlign: 'center',
+                  fontSize: 22,
+                  fontWeight: 700,
+                  color: 'var(--primary)',
+                }}
+              >
+                #{index + 1}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontWeight: 600,
+                    color: 'var(--text)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {displayName(entry, index)}
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
+                  {entry.tasks_solved || 0} tasks · {entry.accuracy ?? 0}%
+                </div>
+              </div>
+              <div
+                style={{
+                  fontSize: 22,
+                  fontWeight: 700,
+                  color: 'var(--primary)',
+                }}
+              >
+                {entry.score || 0}
+              </div>
+            </div>
+          ))}
+      </main>
     </div>
   );
 }

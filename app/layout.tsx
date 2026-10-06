@@ -4,6 +4,7 @@ import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
 import GlobalAuthModal from '@/components/GlobalAuthModal';
 import AdBanner from '@/components/AdBanner';
+import BottomNav from '@/components/BottomNav';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -43,10 +44,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <div className="app-root">
             <AdBanner />
-            <div style={{ flex: 1, minHeight: 0, width: '100%', overflowX: 'hidden' }}>
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                width: '100%',
+                overflowX: 'hidden',
+                paddingBottom: 'calc(72px + env(safe-area-inset-bottom))',
+              }}
+            >
               {children}
             </div>
           </div>
+          <BottomNav />
           <GlobalAuthModal />
         </AuthProvider>
       </body>
