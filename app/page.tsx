@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { LogOut, Calculator, Grid3X3, CircleDot, Hash, Trophy } from 'lucide-react';
+import { LogOut, Calculator, Grid3X3, CircleDot, Hash } from 'lucide-react';
 
 export default function Home() {
   const router = useRouter();
@@ -76,14 +76,14 @@ export default function Home() {
         </div>
       </header>
 
-			<main
-  className="page-inner"
-  style={{
-    flex: 1,
-    paddingTop: 32,
-    paddingBottom: 40,
-  }}
->
+      <main
+        className="page-inner"
+        style={{
+          flex: 1,
+          paddingTop: 32,
+          paddingBottom: 40,
+        }}
+      >
         <h2
           style={{
             fontSize: 28,
@@ -101,7 +101,6 @@ export default function Home() {
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
             gap: 16,
-            marginBottom: 32,
           }}
         >
           {modes.map((mode) => (
@@ -153,28 +152,6 @@ export default function Home() {
             </button>
           ))}
         </div>
-
-        <button
-          type="button"
-          onClick={() => router.push('/leaderboard')}
-          style={{
-            width: '100%',
-            borderRadius: 24,
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid var(--border)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 12,
-            padding: 20,
-            cursor: 'pointer',
-            color: 'var(--text)',
-            fontWeight: 500,
-          }}
-        >
-          <Trophy size={22} style={{ color: 'var(--primary)' }} />
-          Global Leaderboard
-        </button>
       </main>
     </div>
   );
