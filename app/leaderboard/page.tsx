@@ -13,6 +13,7 @@ type Row = {
   score: number;
   tasks_solved: number;
   accuracy: number | null;
+  avatar_url?: string | null;
 };
 
 type MyRank = {
@@ -21,80 +22,74 @@ type MyRank = {
   display_name: string;
   score: number;
   tasks_solved: number;
+  avatar_url?: string | null;
 };
 
 const PAGE = 10;
 
 function Medal({ rank }: { rank: number }) {
-  if (rank > 3) {
+  if (rank >= 1 && rank <= 3) {
     return (
-      <span
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={`/medals/award_${rank}.webp`}
+        alt={`#${rank}`}
+        width={40}
+        height={40}
         style={{
-          fontSize: 13,
-          fontWeight: 700,
-          color: 'var(--primary)',
-          minWidth: 28,
-          textAlign: 'center',
+          width: 40,
+          height: 40,
+          objectFit: 'contain',
+          flexShrink: 0,
+          display: 'block',
         }}
-      >
-        #{rank}
-      </span>
+      />
     );
   }
 
-  const fill =
-    rank === 1 ? '#F5C542' : rank === 2 ? '#C0C7D1' : '#CD7F32';
-  const leaf =
-    rank === 1 ? '#E8B923' : rank === 2 ? '#A8B0BC' : '#B8732D';
-
   return (
-    <svg width="36" height="36" viewBox="0 0 64 64" aria-hidden>
-      {/* left laurel */}
-      <path
-        d="M28 12c-6 4-10 12-10 20 0 2 0 4 1 6-4-2-7-7-7-13 0-8 5-15 10-18z"
-        fill={leaf}
-        opacity="0.9"
-      />
-      <path
-        d="M26 18c-4 3-7 9-7 14 1-5 4-10 7-13z"
-        fill={leaf}
-      />
-      {/* right laurel */}
-      <path
-        d="M36 12c6 4 10 12 10 20 0 2 0 4-1 6 4-2 7-7 7-13 0-8-5-15-10-18z"
-        fill={leaf}
-        opacity="0.9"
-      />
-      <path
-        d="M38 18c4 3 7 9 7 14-1-5-4-10-7-13z"
-        fill={leaf}
-      />
-      {/* medal disc */}
-      <circle cx="32" cy="34" r="14" fill={fill} />
-      <circle
-        cx="32"
-        cy="34"
-        r="12"
-        fill="none"
-        stroke="rgba(0,0,0,0.2)"
-        strokeWidth="1.5"
-      />
-      <text
-        x="32"
-        y="38"
-        textAnchor="middle"
-        fontSize="11"
-        fontWeight="700"
-        fontFamily="system-ui,sans-serif"
-        fill="#1a1a2e"
-      >
-        #{rank}
-      </text>
-    </svg>
+    <span
+      style={{
+        width: 40,
+        textAlign: 'center',
+        fontSize: 13,
+        fontWeight: 700,
+        color: 'var(--primary)',
+        flexShrink: 0,
+      }}
+    >
+      #{rank}
+    </span>
   );
 }
 
-function Avatar({ name }: { name: string }) {
+function Avatar({
+  name,
+  url,
+}: {
+  name: string;
+  url?: string | null;
+}) {
+  if (url) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={url}
+        alt=""
+        width={36}
+        height={36}
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: '50%',
+          objectFit: 'cover',
+          border: '1px solid rgba(103, 232, 249, 0.25)',
+          flexShrink: 0,
+        }}
+      />
+    );
+  }
+
   const letter = (name?.trim()?.[0] || '?').toUpperCase();
   return (
     <div
@@ -124,6 +119,7 @@ function RankRow({
   score,
   tasks,
   accuracy,
+  avatarUrl,
   highlight,
   sticky,
 }: {
@@ -132,6 +128,7 @@ function RankRow({
   score: number;
   tasks?: number;
   accuracy?: number | null;
+  avatarUrl?: string | null;
   highlight?: boolean;
   sticky?: boolean;
 }) {
@@ -145,9 +142,7 @@ function RankRow({
         marginBottom: sticky ? 0 : 2,
         borderRadius: sticky ? 16 : 12,
         border: highlight ? '1px solid var(--primary)' : '1px solid transparent',
-        background: highlight
-          ? 'rgba(103, 232, 249, 0.08)'
-          : 'transparent',
+        background: highlight ? 'rgba(103, 232, 249, 0.08)' : 'transparent',
         boxShadow: highlight
           ? '0 0 0 1px rgba(103, 232, 249, 0.15)'
           : undefined,
@@ -155,7 +150,7 @@ function RankRow({
     >
       <div
         style={{
-          width: 32,
+          width: 40,
           display: 'flex',
           justifyContent: 'center',
           flexShrink: 0,
@@ -164,7 +159,7 @@ function RankRow({
         <Medal rank={rank} />
       </div>
 
-      <Avatar name={name} />
+      <Avatar name={name} url={avatarUrl} />
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
@@ -259,6 +254,7 @@ export default function LeaderboardPage() {
             score: number;
             tasks_solved: number;
             accuracy: number | null;
+            avatar_url?: string | null;
           }) => ({
             rank: Number(r.rank),
             user_id: r.user_id,
@@ -266,6 +262,7 @@ export default function LeaderboardPage() {
             score: Number(r.score),
             tasks_solved: Number(r.tasks_solved || 0),
             accuracy: r.accuracy == null ? null : Number(r.accuracy),
+            avatar_url: r.avatar_url ?? null,
           })
         );
 
@@ -301,6 +298,7 @@ export default function LeaderboardPage() {
       display_name: data.display_name || 'Player',
       score: Number(data.score),
       tasks_solved: Number(data.tasks_solved || 0),
+      avatar_url: data.avatar_url ?? null,
     });
   }, [user, period]);
 
@@ -384,7 +382,6 @@ export default function LeaderboardPage() {
           flexDirection: 'column',
         }}
       >
-        {/* Tabs */}
         <div
           style={{
             display: 'flex',
@@ -420,7 +417,6 @@ export default function LeaderboardPage() {
           })}
         </div>
 
-        {/* Sticky top if you are above the loaded window */}
         {showStickyTop && my && (
           <>
             <RankRow
@@ -430,6 +426,7 @@ export default function LeaderboardPage() {
               name={`You · ${my.display_name}`}
               score={my.score}
               tasks={my.tasks_solved}
+              avatarUrl={my.avatar_url}
             />
             <div
               style={{
@@ -487,7 +484,6 @@ export default function LeaderboardPage() {
           </div>
         )}
 
-        {/* List */}
         <div style={{ flex: 1 }}>
           {rows.map((row) => {
             const isMe = Boolean(my && row.user_id === my.user_id);
@@ -500,6 +496,7 @@ export default function LeaderboardPage() {
                 score={row.score}
                 tasks={row.tasks_solved}
                 accuracy={period === 'all' ? row.accuracy : null}
+                avatarUrl={row.avatar_url}
               />
             );
           })}
@@ -534,7 +531,6 @@ export default function LeaderboardPage() {
         )}
       </main>
 
-      {/* Sticky bottom — your rank below current page */}
       {showStickyBottom && my && (
         <div
           style={{
@@ -582,6 +578,7 @@ export default function LeaderboardPage() {
                 name={`You · ${my.display_name}`}
                 score={my.score}
                 tasks={my.tasks_solved}
+                avatarUrl={my.avatar_url}
               />
             </div>
           </div>

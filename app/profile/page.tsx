@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Share2, LogOut, User, Camera } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { resizeImageFile } from '@/lib/resizeImage';
 
 const APP_SHARE_URL = 'https://dealer-forge-omega.vercel.app';
 
@@ -21,12 +22,14 @@ export default function ProfilePage() {
       setAvatarUrl(null);
       return;
     }
+
     (async () => {
       const { data } = await supabase
         .from('profiles')
         .select('display_name, avatar_url')
         .eq('id', user.id)
         .maybeSingle();
+
       setDisplayName(data?.display_name || '');
       setAvatarUrl(data?.avatar_url || null);
     })();
@@ -34,13 +37,15 @@ export default function ProfilePage() {
 
   const handleShare = async () => {
     setShareHint(null);
+    const payload = {
+      title: 'DealerForge',
+      text: 'Train like a pro dealer',
+      url: APP_SHARE_URL,
+    };
+
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: 'DealerForge',
-          text: 'Train like a pro dealer',
-          url: APP_SHARE_URL,
-        });
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        await navigator.share(payload);
         return;
       }
       await navigator.clipboard.writeText(APP_SHARE_URL);
@@ -58,23 +63,34 @@ export default function ProfilePage() {
   const onAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
+
     if (!file.type.startsWith('image/')) {
-      alert('Choose an image');
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      alert('Max 2 MB');
+      alert('Choose an image file');
+      e.target.value = '';
       return;
     }
 
     setUploading(true);
     try {
-      const ext = file.name.split('.').pop() || 'jpg';
-      const path = `${user.id}/avatar.${ext}`;
+      const small = await resizeImageFile(file, {
+        maxSize: 512,
+        quality: 0.8,
+      });
+
+      if (small.size > 1.5 * 1024 * 1024) {
+        alert('Image is still too large. Try another photo.');
+        return;
+      }
+
+      const path = `${user.id}/avatar.jpg`;
 
       const { error: upErr } = await supabase.storage
         .from('avatars')
-        .upload(path, file, { upsert: true, contentType: file.type });
+        .upload(path, small, {
+          upsert: true,
+          contentType: 'image/jpeg',
+          cacheControl: '3600',
+        });
 
       if (upErr) throw upErr;
 
@@ -87,9 +103,12 @@ export default function ProfilePage() {
         .eq('id', user.id);
 
       if (prErr) throw prErr;
+
       setAvatarUrl(url);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Upload failed');
+      const msg = err instanceof Error ? err.message : 'Upload failed';
+      alert(msg);
+      console.error('avatar upload', err);
     } finally {
       setUploading(false);
       e.target.value = '';
@@ -148,8 +167,8 @@ export default function ProfilePage() {
                   overflow: 'hidden',
                   cursor: uploading ? 'wait' : 'pointer',
                   flexShrink: 0,
-                  border: '2px solid rgba(103,232,249,0.35)',
-                  background: 'rgba(103,232,249,0.1)',
+                  border: '2px solid rgba(103, 232, 249, 0.35)',
+                  background: 'rgba(103, 232, 249, 0.1)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -160,7 +179,11 @@ export default function ProfilePage() {
                   <img
                     src={avatarUrl}
                     alt=""
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                    }}
                   />
                 ) : (
                   <User size={32} color="var(--primary)" />
@@ -213,7 +236,13 @@ export default function ProfilePage() {
                   {user.email}
                 </p>
                 {uploading && (
-                  <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--primary)' }}>
+                  <p
+                    style={{
+                      margin: '6px 0 0',
+                      fontSize: 12,
+                      color: 'var(--primary)',
+                    }}
+                  >
                     Uploading…
                   </p>
                 )}
@@ -232,7 +261,7 @@ export default function ProfilePage() {
                 padding: '14px 16px',
                 borderRadius: 20,
                 border: '1px solid var(--border)',
-                background: 'rgba(255,255,255,0.05)',
+                background: 'rgba(255, 255, 255, 0.05)',
                 color: 'var(--text)',
                 fontWeight: 500,
                 cursor: 'pointer',
@@ -253,7 +282,13 @@ export default function ProfilePage() {
               textAlign: 'center',
             }}
           >
-            <p style={{ margin: '0 0 20px', color: 'var(--text-muted)' }}>
+            <p
+              style={{
+                margin: '0 0 20px',
+                color: 'var(--text-muted)',
+                lineHeight: 1.5,
+              }}
+            >
               Sign in to save progress and appear on the leaderboard.
             </p>
             <Link
@@ -267,6 +302,7 @@ export default function ProfilePage() {
                 background: 'var(--primary)',
                 color: '#000',
                 fontWeight: 600,
+                fontSize: 16,
                 textAlign: 'center',
                 textDecoration: 'none',
               }}
@@ -299,9 +335,10 @@ export default function ProfilePage() {
               margin: '0 0 16px',
               fontSize: 14,
               color: 'var(--text-muted)',
+              lineHeight: 1.5,
             }}
           >
-            Send the app link to friends.
+            Send the app link to friends so they can open and install it.
           </p>
           <button
             type="button"
