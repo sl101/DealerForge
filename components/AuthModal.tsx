@@ -10,87 +10,185 @@ interface AuthModalProps {
   message?: string;
 }
 
-export default function AuthModal({ isOpen, onClose, message = "Great work!" }: AuthModalProps) {
+export default function AuthModal({
+  isOpen,
+  onClose,
+  message = 'Great work!',
+}: AuthModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [nickname, setNickname] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const { signIn, signUp } = useAuth();
 
   const handleSubmit = async () => {
     if (!email || !password) return;
+    if (!isLogin && !nickname.trim()) {
+      alert('Enter a nickname');
+      return;
+    }
     setLoading(true);
     try {
       if (isLogin) await signIn(email, password);
-      else await signUp(email, password);
+      else await signUp(email, password, nickname.trim());
       onClose();
-    } catch (error: any) {
-      alert(error.message || 'Error');
+    } catch (error: unknown) {
+      const msg =
+        error instanceof Error ? error.message : 'Error';
+      alert(msg);
     }
     setLoading(false);
   };
 
   if (!isOpen) return null;
 
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    boxSizing: 'border-box',
+    marginBottom: 12,
+    padding: '14px 16px',
+    borderRadius: 16,
+    border: '1px solid var(--border)',
+    background: 'rgba(255, 255, 255, 0.06)',
+    color: 'var(--text)',
+    fontSize: 16,
+    outline: 'none',
+  };
+
   return (
     <>
-      {/* Full screen backdrop */}
-      <div className="fixed inset-0 bg-black/95 z-[99999]" />
+      <div
+        className="fixed inset-0 z-[99999]"
+        style={{ background: 'rgba(0,0,0,0.92)' }}
+      />
 
-      {/* Modal */}
       <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4">
-        <div className="glass w-full max-w-md rounded-3xl p-8 relative shadow-2xl">
-          <button 
-            onClick={onClose} 
-            className="absolute top-5 right-5 text-white/70 hover:text-white"
+        <div
+          className="glass relative w-full max-w-md"
+          style={{
+            borderRadius: 24,
+            padding: 28,
+            border: '1px solid var(--border)',
+          }}
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              position: 'absolute',
+              top: 16,
+              right: 16,
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+            }}
           >
-            <X size={28} />
+            <X size={24} />
           </button>
 
-          <h2 className="text-3xl font-bold text-center mb-2">Join DealerForge</h2>
-          <p className="text-center text-white/70 mb-8 leading-relaxed">{message}</p>
+          <h2
+            style={{
+              margin: '0 0 8px',
+              fontSize: 24,
+              fontWeight: 700,
+              textAlign: 'center',
+              color: 'var(--text)',
+            }}
+          >
+            Join DealerForge
+          </h2>
+          <p
+            style={{
+              margin: '0 0 24px',
+              textAlign: 'center',
+              color: 'var(--text-muted)',
+              lineHeight: 1.5,
+            }}
+          >
+            {message}
+          </p>
 
-          <div className="flex bg-zinc-900 rounded-2xl p-1 mb-8">
-            <button 
+          <div className="segmented" style={{ marginBottom: 20 }}>
+            <button
+              type="button"
+              className={isLogin ? 'active' : ''}
               onClick={() => setIsLogin(true)}
-              className={`flex-1 py-3 rounded-xl font-medium ${isLogin ? 'bg-[#67e8f9] text-black' : 'text-white'}`}
             >
               Login
             </button>
-            <button 
+            <button
+              type="button"
+              className={!isLogin ? 'active' : ''}
               onClick={() => setIsLogin(false)}
-              className={`flex-1 py-3 rounded-xl font-medium ${!isLogin ? 'bg-[#67e8f9] text-black' : 'text-white'}`}
             >
               Register
             </button>
           </div>
 
+          {!isLogin && (
+            <input
+              type="text"
+              placeholder="Nickname"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              maxLength={24}
+              style={inputStyle}
+            />
+          )}
           <input
             type="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full mb-4 bg-zinc-900 border border-white/30 rounded-2xl px-6 py-4 text-lg text-white"
+            style={inputStyle}
           />
           <input
             type="password"
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full mb-8 bg-zinc-900 border border-white/30 rounded-2xl px-6 py-4 text-lg text-white"
+            style={{ ...inputStyle, marginBottom: 20 }}
           />
 
-          <button 
+          <button
+            type="button"
             onClick={handleSubmit}
             disabled={loading || !email || !password}
-            className="w-full bg-[#67e8f9] text-black font-semibold py-4 rounded-3xl text-lg disabled:opacity-50"
+            style={{
+              width: '100%',
+              padding: '14px 16px',
+              borderRadius: 20,
+              border: 'none',
+              background: 'var(--primary)',
+              color: '#000',
+              fontWeight: 600,
+              fontSize: 16,
+              cursor: 'pointer',
+              opacity: loading || !email || !password ? 0.5 : 1,
+            }}
           >
-            {loading ? 'Processing...' : isLogin ? 'Sign In' : 'Create Account'}
+            {loading
+              ? 'Processing...'
+              : isLogin
+                ? 'Sign In'
+                : 'Create Account'}
           </button>
 
-          <button 
-            onClick={onClose} 
-            className="w-full mt-6 text-white/60 hover:text-white py-3"
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              width: '100%',
+              marginTop: 12,
+              padding: 12,
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              fontSize: 14,
+            }}
           >
             Continue as Guest
           </button>

@@ -164,7 +164,7 @@ body {
 
 .keypad-dock {
 	position: fixed;
-	bottom: 0;
+	bottom: 60px;
 	left: 0;
 	right: 0;
 	z-index: 40;

@@ -12,6 +12,33 @@ type LeaderboardRow = {
   profiles?: { display_name?: string | null } | null;
 };
 
+function normalizeRows(raw: unknown): LeaderboardRow[] {
+  if (!Array.isArray(raw)) return [];
+
+  return raw.map((item) => {
+    const row = item as Record<string, unknown>;
+    const profilesRaw = row.profiles;
+
+    let profiles: LeaderboardRow['profiles'] = null;
+    if (Array.isArray(profilesRaw) && profilesRaw[0]) {
+      const p = profilesRaw[0] as { display_name?: string | null };
+      profiles = { display_name: p.display_name ?? null };
+    } else if (profilesRaw && typeof profilesRaw === 'object') {
+      const p = profilesRaw as { display_name?: string | null };
+      profiles = { display_name: p.display_name ?? null };
+    }
+
+    return {
+      id: row.id as string | undefined,
+      user_id: row.user_id as string | undefined,
+      score: row.score as number | undefined,
+      tasks_solved: row.tasks_solved as number | undefined,
+      accuracy: row.accuracy as number | undefined,
+      profiles,
+    };
+  });
+}
+
 export default function LeaderboardPage() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +53,7 @@ export default function LeaderboardPage() {
     setError(null);
 
     try {
-      let { data, error: queryError } = await supabase
+      const primary = await supabase
         .from('leaderboard')
         .select(
           'id, user_id, score, tasks_solved, accuracy, profiles(display_name)'
@@ -34,22 +61,24 @@ export default function LeaderboardPage() {
         .order('score', { ascending: false })
         .limit(50);
 
-      if (queryError) {
-        const fallback = await supabase
-          .from('leaderboard')
-          .select('id, user_id, score, tasks_solved, accuracy')
-          .order('score', { ascending: false })
-          .limit(50);
-
-        if (fallback.error) {
-          setError(fallback.error.message);
-          setLeaderboard([]);
-          return;
-        }
-        data = fallback.data as LeaderboardRow[];
+      if (!primary.error) {
+        setLeaderboard(normalizeRows(primary.data));
+        return;
       }
 
-      setLeaderboard((data as LeaderboardRow[]) || []);
+      const fallback = await supabase
+        .from('leaderboard')
+        .select('id, user_id, score, tasks_solved, accuracy')
+        .order('score', { ascending: false })
+        .limit(50);
+
+      if (fallback.error) {
+        setError(fallback.error.message);
+        setLeaderboard([]);
+        return;
+      }
+
+      setLeaderboard(normalizeRows(fallback.data));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -90,7 +119,13 @@ export default function LeaderboardPage() {
         style={{ flex: 1, paddingTop: 24, paddingBottom: 40 }}
       >
         {loading && (
-          <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '48px 0' }}>
+          <p
+            style={{
+              textAlign: 'center',
+              color: 'var(--text-muted)',
+              padding: '48px 0',
+            }}
+          >
             Loading leaderboard...
           </p>
         )}
@@ -165,7 +200,13 @@ export default function LeaderboardPage() {
                 >
                   {displayName(entry, index)}
                 </div>
-                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: 'var(--text-muted)',
+                    marginTop: 4,
+                  }}
+                >
                   {entry.tasks_solved || 0} tasks · {entry.accuracy ?? 0}%
                 </div>
               </div>
