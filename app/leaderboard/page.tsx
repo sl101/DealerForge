@@ -63,13 +63,7 @@ function Medal({ rank }: { rank: number }) {
   );
 }
 
-function Avatar({
-  name,
-  url,
-}: {
-  name: string;
-  url?: string | null;
-}) {
+function Avatar({ name, url }: { name: string; url?: string | null }) {
   if (url) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
@@ -224,6 +218,7 @@ export default function LeaderboardPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const loadPage = useCallback(
     async (nextOffset: number, replace: boolean) => {
@@ -311,6 +306,7 @@ export default function LeaderboardPage() {
   }, [period, loadPage, loadMyRank]);
 
   useEffect(() => {
+    const root = scrollRef.current;
     const el = sentinelRef.current;
     if (!el) return;
 
@@ -325,7 +321,7 @@ export default function LeaderboardPage() {
           loadPage(offset, false);
         }
       },
-      { rootMargin: '120px' }
+      { root: root ?? null, rootMargin: '160px' }
     );
     obs.observe(el);
     return () => obs.disconnect();
@@ -352,7 +348,20 @@ export default function LeaderboardPage() {
   ];
 
   return (
-    <div className="page-shell">
+    <div
+      ref={scrollRef}
+      className="page-shell allow-page-scroll"
+      style={{
+        height: '100%',
+        maxHeight: '100%',
+        minHeight: 0,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
+        touchAction: 'pan-y',
+        overscrollBehavior: 'contain',
+      }}
+    >
       <header className="page-header">
         <div
           className="page-inner"
@@ -375,11 +384,8 @@ export default function LeaderboardPage() {
       <main
         className="page-inner"
         style={{
-          flex: 1,
           paddingTop: 12,
-          paddingBottom: showStickyBottom ? 96 : 40,
-          display: 'flex',
-          flexDirection: 'column',
+          paddingBottom: showStickyBottom ? 120 : 48,
         }}
       >
         <div
@@ -484,25 +490,23 @@ export default function LeaderboardPage() {
           </div>
         )}
 
-        <div style={{ flex: 1 }}>
-          {rows.map((row) => {
-            const isMe = Boolean(my && row.user_id === my.user_id);
-            return (
-              <RankRow
-                key={`${row.user_id}-${row.rank}`}
-                highlight={isMe}
-                rank={row.rank}
-                name={isMe ? `You · ${row.display_name}` : row.display_name}
-                score={row.score}
-                tasks={row.tasks_solved}
-                accuracy={period === 'all' ? row.accuracy : null}
-                avatarUrl={row.avatar_url}
-              />
-            );
-          })}
-        </div>
+        {rows.map((row) => {
+          const isMe = Boolean(my && row.user_id === my.user_id);
+          return (
+            <RankRow
+              key={`${row.user_id}-${row.rank}`}
+              highlight={isMe}
+              rank={row.rank}
+              name={isMe ? `You · ${row.display_name}` : row.display_name}
+              score={row.score}
+              tasks={row.tasks_solved}
+              accuracy={period === 'all' ? row.accuracy : null}
+              avatarUrl={row.avatar_url}
+            />
+          );
+        })}
 
-        <div ref={sentinelRef} style={{ height: 8 }} />
+        <div ref={sentinelRef} style={{ height: 24 }} />
 
         {loadingMore && (
           <p

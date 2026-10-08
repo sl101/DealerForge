@@ -12,6 +12,14 @@ import {
   getNumberColor,
 } from '@/lib/neighbors';
 import NumericKeypad from '@/components/ui/NumericKeypad';
+import { useAuth } from '@/contexts/AuthContext';
+import { useSessionScore } from '@/hooks/useSessionScore';
+import {
+  neighborsModeFromDepth,
+  neighborsSpeedBonus,
+  hintPenaltyFromRevealed,
+  calcSessionPoints,
+} from '@/lib/scoring';
 
 interface TimedTrainerProps {
   onBack: () => void;
@@ -19,13 +27,17 @@ interface TimedTrainerProps {
 
 const BEST_SCORE_KEY = 'neighbors_timed_best_score';
 const LONGEST_STREAK_KEY = 'neighbors_timed_longest_streak';
+const SESSION_DURATION = 45;
 
 export default function TimedTrainer({ onBack }: TimedTrainerProps) {
+  const { user } = useAuth();
+  const session = useSessionScore(Boolean(user));
+
   const [depth, setDepth] = useState<Depth>('1/1');
   const [cards, setCards] = useState<NeighborCard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userInput, setUserInput] = useState('');
-  const [timeLeft, setTimeLeft] = useState(45);
+  const [timeLeft, setTimeLeft] = useState(SESSION_DURATION);
   const [score, setScore] = useState(0);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
   const [stats, setStats] = useState<Record<number, NumberStats>>({});
@@ -43,12 +55,18 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
 
   const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeLeftRef = useRef(SESSION_DURATION);
+  const sessionEndedRef = useRef(false);
 
   useEffect(() => {
     setStats(loadStats());
     setBestScore(Number(localStorage.getItem(BEST_SCORE_KEY) || 0));
     setLongestStreak(Number(localStorage.getItem(LONGEST_STREAK_KEY) || 0));
   }, []);
+
+  useEffect(() => {
+    timeLeftRef.current = timeLeft;
+  }, [timeLeft]);
 
   useEffect(() => {
     const html = document.documentElement;
@@ -63,13 +81,24 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
     };
   }, []);
 
+  const finishSession = async (finalScore: number) => {
+    if (sessionEndedRef.current) return;
+    sessionEndedRef.current = true;
+    await session.flush();
+    if (finalScore > bestScore) {
+      setBestScore(finalScore);
+      localStorage.setItem(BEST_SCORE_KEY, String(finalScore));
+      setIsNewRecord(true);
+    }
+  };
+
   const startSession = () => {
     const shuffled = [...NEIGHBOR_CARDS].sort(() => Math.random() - 0.5);
     setCards(shuffled);
     setCurrentIndex(0);
     setScore(0);
     setCurrentStreak(0);
-    setTimeLeft(45);
+    setTimeLeft(SESSION_DURATION);
     setFeedback(null);
     setUserInput('');
     setIsNewRecord(false);
@@ -77,6 +106,8 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
     setRevealed([]);
     setIsRunning(true);
     setIsPaused(false);
+    sessionEndedRef.current = false;
+    session.begin(neighborsModeFromDepth(depth));
     setTimeout(() => inputRef.current?.focus(), 300);
   };
 
@@ -100,14 +131,27 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
   }, [isRunning, isPaused]);
 
   useEffect(() => {
-    if (!isRunning && timeLeft === 0 && score > 0) {
-      if (score > bestScore) {
-        setBestScore(score);
-        localStorage.setItem(BEST_SCORE_KEY, String(score));
-        setIsNewRecord(true);
-      }
+    if (!isRunning && timeLeft === 0 && cards.length > 0) {
+      const snap = session.getSnapshot();
+      const pts = snap ? calcSessionPoints(snap) : score;
+      void finishSession(pts);
     }
-  }, [isRunning, timeLeft, score, bestScore]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRunning, timeLeft]);
+
+  const handleBack = () => {
+    if (isRunning || (cards.length > 0 && timeLeft === 0)) {
+      const snap = session.getSnapshot();
+      const pts = snap ? calcSessionPoints(snap) : score;
+      void finishSession(pts).then(() => {
+        session.reset();
+        onBack();
+      });
+      return;
+    }
+    session.reset();
+    onBack();
+  };
 
   const currentCard = cards[currentIndex];
 
@@ -145,9 +189,17 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
       setFeedback('correct');
       setIsPaused(true);
 
-      const hintPenalty = revealed.length === 0 ? 1 : revealed.length === 1 ? 0.5 : 0.25;
-      const points = Math.max(8, Math.floor(timeLeft * 1.5 * hintPenalty));
-      setScore((prev) => prev + points);
+      const penalty = hintPenaltyFromRevealed(revealed.length);
+      const speed = neighborsSpeedBonus(
+        timeLeftRef.current,
+        SESSION_DURATION,
+        penalty
+      );
+      session.noteAttempt({ correct: true, speedBonus: speed });
+
+      const snap = session.getSnapshot();
+      const pts = snap ? calcSessionPoints(snap) : score + speed;
+      setScore(pts);
 
       const newStreak = currentStreak + 1;
       setCurrentStreak(newStreak);
@@ -181,6 +233,8 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
       setFeedback('wrong');
       setShake(true);
       setCurrentStreak(0);
+
+      session.noteAttempt({ correct: false });
 
       setTimeout(() => {
         setShake(false);
@@ -227,7 +281,7 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
           >
             <button
               type="button"
-              onClick={onBack}
+              onClick={handleBack}
               style={{
                 background: 'none',
                 border: 'none',
@@ -356,7 +410,7 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
         </button>
         <button
           type="button"
-          onClick={onBack}
+          onClick={handleBack}
           style={{
             background: 'none',
             border: 'none',
@@ -399,7 +453,7 @@ export default function TimedTrainer({ onBack }: TimedTrainerProps) {
         >
           <button
             type="button"
-            onClick={onBack}
+            onClick={handleBack}
             style={{
               background: 'none',
               border: 'none',

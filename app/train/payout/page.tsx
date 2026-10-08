@@ -9,6 +9,13 @@ import AuthModal from '@/components/AuthModal';
 import ComboDiagram from '@/app/train/standart-combos/components/ComboDiagram';
 import { familyFromNumber } from '@/lib/standart-combos/familyFromNumber';
 import { betsToStacks } from '@/lib/roulette/betToChip';
+import { useAuth } from '@/contexts/AuthContext';
+import { useSessionScore } from '@/hooks/useSessionScore';
+import {
+  payoutModeFromLevel,
+  payoutSpeedBonus,
+  calcSessionPoints,
+} from '@/lib/scoring';
 
 type Level = 1 | 2 | 3;
 
@@ -64,6 +71,8 @@ function logTask(lv: Level, task: RouletteTask) {
 
 export default function PayoutTrainerPage() {
   const router = useRouter();
+  const { user } = useAuth();
+  const session = useSessionScore(Boolean(user));
 
   const [screen, setScreen] = useState<'menu' | 'play'>('menu');
   const [level, setLevel] = useState<Level>(1);
@@ -79,6 +88,11 @@ export default function PayoutTrainerPage() {
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const timeLeftRef = useRef(0);
+
+  useEffect(() => {
+    timeLeftRef.current = timeLeft;
+  }, [timeLeft]);
 
   const stopTimer = () => {
     if (timerRef.current) {
@@ -122,14 +136,21 @@ export default function PayoutTrainerPage() {
     } catch {
       setBestStreak(0);
     }
+    session.begin(payoutModeFromLevel(lv));
     setScreen('play');
     createTask(lv);
   };
 
-  const backToMenu = () => {
+  const endSessionAndMenu = async () => {
     stopTimer();
+    await session.flush();
+    session.reset();
     setTask(null);
     setScreen('menu');
+  };
+
+  const backToMenu = () => {
+    void endSessionAndMenu();
   };
 
   useEffect(() => () => stopTimer(), []);
@@ -143,9 +164,16 @@ export default function PayoutTrainerPage() {
     stopTimer();
     setAttempts((a) => a + 1);
 
+    const speed = ok ? payoutSpeedBonus(timeLeftRef.current) : 0;
+    session.noteAttempt({ correct: ok, speedBonus: speed });
+
     if (ok) {
-      const bonus = Math.max(5, timeLeft);
-      setScore((s) => s + bonus * level);
+      const snap = session.getSnapshot();
+      const pts = snap
+        ? calcSessionPoints(snap)
+        : score + Math.max(5, timeLeftRef.current) * level;
+      setScore(pts);
+
       setStreak((s) => {
         const next = s + 1;
         setBestStreak((b) => {
@@ -164,6 +192,8 @@ export default function PayoutTrainerPage() {
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30);
     } else {
       setStreak(0);
+      const snap = session.getSnapshot();
+      if (snap) setScore(calcSessionPoints(snap));
       if (typeof navigator !== 'undefined' && navigator.vibrate) {
         navigator.vibrate([40, 30, 40]);
       }
@@ -319,7 +349,6 @@ export default function PayoutTrainerPage() {
           className="play-main page-inner"
           style={{
             paddingTop: 16,
-            // No reserved space for fixed keypad when result is shown
             paddingBottom: showKeypad ? undefined : 24,
           }}
         >
