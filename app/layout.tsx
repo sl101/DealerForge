@@ -44,17 +44,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <div className="app-root">
             <AdBanner />
-            <div
-              style={{
-                flex: 1,
-                minHeight: 0,
-                width: '100%',
-                overflowX: 'hidden',
-                paddingBottom: 'calc(72px + env(safe-area-inset-bottom))',
-              }}
-            >
-              {children}
-            </div>
+            {/* Scrollport for pages: fixed height chain so children can overflow-y */}
+            <div className="app-main">{children}</div>
           </div>
           <BottomNav />
           <GlobalAuthModal />

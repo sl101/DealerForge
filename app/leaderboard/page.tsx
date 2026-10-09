@@ -308,7 +308,7 @@ export default function LeaderboardPage() {
   useEffect(() => {
     const root = scrollRef.current;
     const el = sentinelRef.current;
-    if (!el) return;
+    if (!el || !root) return;
 
     const obs = new IntersectionObserver(
       (entries) => {
@@ -321,7 +321,7 @@ export default function LeaderboardPage() {
           loadPage(offset, false);
         }
       },
-      { root: root ?? null, rootMargin: '160px' }
+      { root, rootMargin: '160px' }
     );
     obs.observe(el);
     return () => obs.disconnect();
@@ -348,20 +348,7 @@ export default function LeaderboardPage() {
   ];
 
   return (
-    <div
-      ref={scrollRef}
-      className="page-shell allow-page-scroll"
-      style={{
-        height: '100%',
-        maxHeight: '100%',
-        minHeight: 0,
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        WebkitOverflowScrolling: 'touch',
-        touchAction: 'pan-y',
-        overscrollBehavior: 'contain',
-      }}
-    >
+    <div ref={scrollRef} className="page-shell leaderboard-scroll">
       <header className="page-header">
         <div
           className="page-inner"
