@@ -361,17 +361,6 @@ export default function ProfilePage() {
             <Share2 size={18} />
             Share app
           </button>
-          <p
-            style={{
-              margin: '12px 0 0',
-              fontSize: 12,
-              color: 'var(--text-muted)',
-              textAlign: 'center',
-              wordBreak: 'break-all',
-            }}
-          >
-            {APP_SHARE_URL}
-          </p>
           {shareHint && (
             <p
               style={{
