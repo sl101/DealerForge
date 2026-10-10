@@ -2,6 +2,7 @@
 
 import { X } from 'lucide-react';
 import { useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface AuthModalProps {
@@ -34,8 +35,7 @@ export default function AuthModal({
       else await signUp(email, password, nickname.trim());
       onClose();
     } catch (error: unknown) {
-      const msg =
-        error instanceof Error ? error.message : 'Error';
+      const msg = error instanceof Error ? error.message : 'Error';
       alert(msg);
     }
     setLoading(false);
@@ -149,8 +149,24 @@ export default function AuthModal({
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            style={{ ...inputStyle, marginBottom: 20 }}
+            style={{ ...inputStyle, marginBottom: isLogin ? 8 : 20 }}
           />
+
+          {isLogin && (
+            <div style={{ textAlign: 'right', marginBottom: 16 }}>
+              <Link
+                href="/auth/forgot"
+                onClick={onClose}
+                style={{
+                  fontSize: 13,
+                  color: 'var(--primary)',
+                  textDecoration: 'none',
+                }}
+              >
+                Forgot password?
+              </Link>
+            </div>
+          )}
 
           <button
             type="button"

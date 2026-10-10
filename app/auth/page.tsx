@@ -39,11 +39,15 @@ export default function AuthPage() {
         return;
       }
 
+      const site =
+        process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { display_name: nickname.trim() },
+          emailRedirectTo: `${site}/auth`,
         },
       });
 
@@ -58,7 +62,9 @@ export default function AuthPage() {
       }
 
       if (data.user) {
-        alert('Account created. You can sign in now.');
+        alert(
+          'Account created. Check your email to confirm, then sign in.'
+        );
         setIsLogin(true);
         return;
       }
@@ -125,10 +131,7 @@ export default function AuthPage() {
             {isLogin ? 'Sign in to continue' : 'Create an account'}
           </p>
 
-          <div
-            className="segmented"
-            style={{ marginBottom: 20 }}
-          >
+          <div className="segmented" style={{ marginBottom: 20 }}>
             <button
               type="button"
               className={isLogin ? 'active' : ''}
@@ -171,8 +174,23 @@ export default function AuthPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete={isLogin ? 'current-password' : 'new-password'}
-            style={{ ...inputStyle, marginBottom: 20 }}
+            style={{ ...inputStyle, marginBottom: isLogin ? 8 : 20 }}
           />
+
+          {isLogin && (
+            <div style={{ textAlign: 'right', marginBottom: 16 }}>
+              <Link
+                href="/auth/forgot"
+                style={{
+                  fontSize: 13,
+                  color: 'var(--primary)',
+                  textDecoration: 'none',
+                }}
+              >
+                Forgot password?
+              </Link>
+            </div>
+          )}
 
           <button
             type="button"
@@ -197,6 +215,26 @@ export default function AuthPage() {
                 ? 'Sign In'
                 : 'Create Account'}
           </button>
+
+          <p
+            style={{
+              margin: '16px 0 0',
+              textAlign: 'center',
+              fontSize: 12,
+              color: 'var(--text-muted)',
+              lineHeight: 1.4,
+            }}
+          >
+            By continuing you agree to our{' '}
+            <Link href="/terms" style={{ color: 'var(--primary)' }}>
+              Terms
+            </Link>{' '}
+            and{' '}
+            <Link href="/privacy" style={{ color: 'var(--primary)' }}>
+              Privacy Policy
+            </Link>
+            .
+          </p>
 
           <Link
             href="/"

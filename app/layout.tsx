@@ -8,10 +8,40 @@ import BottomNav from '@/components/BottomNav';
 
 const inter = Inter({ subsets: ['latin'] });
 
+const SITE =
+  process.env.NEXT_PUBLIC_SITE_URL || 'https://dealer-forge-omega.vercel.app';
+
 export const metadata: Metadata = {
-  title: 'DealerForge',
-  description: 'Train Like a Pro Dealer',
+  metadataBase: new URL(SITE),
+  title: {
+    default: 'DealerForge — Roulette Dealer Training',
+    template: '%s · DealerForge',
+  },
+  description:
+    'Train roulette payouts, neighbors, and casino math. Free dealer practice with leaderboard. Not real-money gambling.',
   applicationName: 'DealerForge',
+  keywords: [
+    'roulette dealer training',
+    'payout trainer',
+    'croupier practice',
+    'casino math',
+    'neighbors roulette',
+  ],
+  authors: [{ name: 'DealerForge' }],
+  openGraph: {
+    type: 'website',
+    url: SITE,
+    title: 'DealerForge — Roulette Dealer Training',
+    description:
+      'Practice roulette payouts and neighbors. Mobile-first trainer for dealers.',
+    siteName: 'DealerForge',
+    images: [{ url: '/icon-512.png', width: 512, height: 512 }],
+  },
+  twitter: {
+    card: 'summary',
+    title: 'DealerForge — Roulette Dealer Training',
+    description: 'Practice roulette payouts and neighbors.',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -19,6 +49,7 @@ export const metadata: Metadata = {
   },
   formatDetection: { telephone: false },
   manifest: '/manifest.webmanifest',
+  robots: { index: true, follow: true },
   icons: {
     icon: [
       { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
@@ -44,7 +75,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <div className="app-root">
             <AdBanner />
-            {/* Scrollport for pages: fixed height chain so children can overflow-y */}
             <div className="app-main">{children}</div>
           </div>
           <BottomNav />

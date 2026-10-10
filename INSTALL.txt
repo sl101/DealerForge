@@ -1,0 +1,15 @@
+DealerForge pack — install order
+================================
+
+1) Copy files into your repo (same paths).
+2) Vercel: set NEXT_PUBLIC_SITE_URL for Production.
+3) Supabase (prod + preview): run sql/security_and_account.sql
+4) Supabase Auth: Site URL + Redirect URLs + Confirm email
+5) Push develop → verify:
+   - /privacy /terms open
+   - Forgot password email arrives
+   - Profile: change password, delete account
+   - Banner hidden only if is_pro true
+6) Read docs/CHECKLIST.md and docs/PLAY_STORE.md
+
+Replace support@dealerforge.app with your real email in privacy/terms.

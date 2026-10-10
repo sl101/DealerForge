@@ -3,20 +3,17 @@
 import { useAuth } from '@/contexts/AuthContext';
 
 /**
- * Top-of-app ad strip for free / guest users.
- * Uses .ad-banner from globals.css (sticky top, stable on rotate).
- * Replace placeholder with real ad SDK later.
+ * Top ad strip for free / guest users.
+ * Pro users (profiles.is_pro) see no banner.
+ * Swap placeholder for AdMob / AdSense when ready.
  */
 export default function AdBanner() {
-  const { user, loading } = useAuth();
-
-  const isPro = Boolean(
-    (user as { isPro?: boolean } | null)?.isPro ||
-      (user?.user_metadata as { isPro?: boolean } | undefined)?.isPro
-  );
+  const { loading, isPro } = useAuth();
 
   if (loading) {
-    return <div className="ad-banner" style={{ visibility: 'hidden' }} aria-hidden />;
+    return (
+      <div className="ad-banner" style={{ visibility: 'hidden' }} aria-hidden />
+    );
   }
 
   if (isPro) return null;
