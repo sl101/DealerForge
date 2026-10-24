@@ -5,6 +5,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import GlobalAuthModal from '@/components/GlobalAuthModal';
 import AdBanner from '@/components/AdBanner';
 import BottomNav from '@/components/BottomNav';
+import PortraitLock from '@/components/PortraitLock';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -73,6 +74,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className="dark">
       <body className={`${inter.className} app-shell`}>
         <AuthProvider>
+					<PortraitLock />
           <div className="app-root">
             <AdBanner />
             <div className="app-main">{children}</div>

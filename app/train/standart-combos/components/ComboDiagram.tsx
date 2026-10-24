@@ -430,11 +430,13 @@ export default function ComboDiagram({
   return (
     <svg
       width="100%"
-      height="auto"
       viewBox="0 0 100 100"
       preserveAspectRatio="xMidYMid meet"
       style={{
+        width: '100%',
         maxWidth: size,
+        height: 'auto',
+        aspectRatio: '1 / 1',
         display: 'block',
         margin: '0 auto',
         borderRadius: 12,

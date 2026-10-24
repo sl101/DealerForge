@@ -45,6 +45,18 @@
 	--card: var(--surface);
 
 	--ad-height: 48px;
+	--nav-height: 56px;
+	--keypad-gap: 12px;
+	--header-height: 48px;
+	/* usable height for train screens (ad + header + bottom nav) */
+	--play-height: calc(
+		100dvh - var(--safe-top) - var(--ad-height) - var(--header-height) - var(--nav-height) - var(--safe-bottom)
+	);
+}
+
+/* No ad banner (Pro) — reclaim ad strip */
+.app-root:not(:has(.ad-banner)) {
+	--ad-height: 0px;
 }
 
 html {
@@ -106,6 +118,7 @@ body {
 	width: 100%;
 	max-width: 100%;
 	padding-inline: 15px;
+	padding-bottom: calc(var(--nav-height) + var(--safe-bottom));
 	overflow-x: hidden;
 	overflow-y: auto;
 	-webkit-overflow-scrolling: touch;
@@ -163,14 +176,14 @@ body {
 }
 
 .keypad-dock {
-	position: fixed;
-	bottom: 60px;
-	left: 0;
-	right: 0;
+	/* default: sits in flex column under play-main (portrait train screens) */
+	position: relative;
+	flex: 0 0 auto;
 	z-index: 40;
-	padding-left: 20px;
-	padding-right: 20px;
-	padding-bottom: env(safe-area-inset-bottom, 0px);
+	width: 100%;
+	padding-left: 12px;
+	padding-right: 12px;
+	padding-bottom: 4px;
 	box-sizing: border-box;
 	pointer-events: none;
 }
@@ -273,22 +286,33 @@ body {
 	height: 0;
 }
 
-/* Portrait: column + fixed keypad */
+/* Portrait: column — main scrolls, keypad stays visible at bottom of play area */
 .play-with-keypad {
 	display: flex;
 	flex-direction: column;
 	flex: 1;
 	min-height: 0;
+	height: var(--play-height);
+	max-height: var(--play-height);
 }
 
 .play-with-keypad .play-main {
-	flex: 1;
+	flex: 1 1 auto;
 	min-height: 0;
 	overflow-x: hidden;
 	overflow-y: auto;
 	-webkit-overflow-scrolling: touch;
 	overscroll-behavior: contain;
-	padding-bottom: calc(22vh + 28px);
+	padding-bottom: 8px;
+}
+
+.play-with-keypad .keypad-dock {
+	position: relative;
+	bottom: auto;
+	left: auto;
+	right: auto;
+	flex: 0 0 auto;
+	padding-bottom: 4px;
 }
 
 /* -------- Landscape: content LEFT, keypad RIGHT + page scroll -------- */
@@ -465,6 +489,73 @@ body {
 	.play-with-keypad .task-card svg {
 		max-width: min(140px, 55vh) !important;
 		max-height: min(140px, 58vh) !important;
+	}
+}
+
+/* Short phones: shrink card / diagram / input */
+@media (max-height: 720px) {
+	:root {
+		--header-height: 42px;
+		--ad-height: 40px;
+	}
+
+	.page-header {
+		padding-top: 4px;
+		padding-bottom: 4px;
+	}
+
+	.task-card {
+		padding: 12px 10px;
+		margin-bottom: 8px;
+		border-radius: 16px;
+	}
+
+	.keypad-task-card {
+		height: min(22dvh, 120px);
+		max-height: 120px;
+		min-height: 72px;
+	}
+
+	.task-card .combo-diagram,
+	.task-card svg {
+		max-width: min(200px, 100%);
+		max-height: min(28dvh, 150px);
+	}
+
+	.answer-input {
+		padding: 10px 12px;
+		font-size: 18px;
+		margin-bottom: 8px;
+	}
+}
+
+@media (max-height: 600px) {
+	:root {
+		--header-height: 36px;
+		--ad-height: 36px;
+		--nav-height: 52px;
+	}
+
+	.task-card {
+		padding: 8px 8px;
+		margin-bottom: 6px;
+	}
+
+	.keypad-task-card {
+		height: min(18dvh, 96px);
+		max-height: 96px;
+		min-height: 64px;
+	}
+
+	.task-card .combo-diagram,
+	.task-card svg {
+		max-height: min(22dvh, 120px);
+	}
+
+	.answer-input {
+		padding: 8px 10px;
+		font-size: 16px;
+		margin-bottom: 6px;
 	}
 }
 
@@ -762,4 +853,266 @@ body {
 	-webkit-overflow-scrolling: touch;
 	overscroll-behavior: contain;
 	touch-action: pan-y;
+}
+
+
+/* ========== Force portrait layout even in landscape ========== */
+@media (orientation: landscape) {
+	html, body {
+		height: auto !important;
+		overflow: auto !important;
+	}
+
+	.app-root {
+		min-height: 100dvh !important;
+		height: auto !important;
+		max-height: none !important;
+		overflow: visible !important;
+	}
+
+	.app-root > .page-shell,
+	.app-root > .app-shell,
+	.app-root > .app-main {
+		height: auto !important;
+		max-height: none !important;
+		min-height: 0 !important;
+		overflow: visible !important;
+	}
+
+	.page-shell,
+	.page-shell.no-page-scroll,
+	.page-shell.tables-page {
+		height: auto !important;
+		max-height: none !important;
+		min-height: 100dvh !important;
+		overflow-x: hidden !important;
+		overflow-y: auto !important;
+	}
+
+	/* Always column: content on top, keypad below — never side-by-side */
+	.play-with-keypad {
+		display: flex !important;
+		flex-direction: column !important;
+		align-items: stretch !important;
+		flex: 1 1 auto !important;
+		height: auto !important;
+		min-height: 0 !important;
+		max-height: none !important;
+		overflow: visible !important;
+	}
+
+	.play-with-keypad .play-main {
+		flex: 0 1 auto !important;
+		width: 100% !important;
+		min-width: 0 !important;
+		overflow-y: visible !important;
+		padding-bottom: 8px !important;
+		justify-content: flex-start !important;
+	}
+
+	.play-with-keypad .keypad-dock {
+		position: relative !important;
+		left: auto !important;
+		right: auto !important;
+		bottom: auto !important;
+		flex: 0 0 auto !important;
+		width: 100% !important;
+		max-width: 100% !important;
+		height: auto !important;
+		border-left: none !important;
+		padding: 4px 12px 0 !important;
+		background: transparent !important;
+	}
+
+	.play-with-keypad .keypad-dock-inner {
+		max-width: 360px;
+		margin: 0 auto;
+	}
+
+	.play-with-keypad .task-card {
+		max-height: none !important;
+		padding: 12px !important;
+	}
+
+	.play-with-keypad .task-card .combo-diagram,
+	.play-with-keypad .task-card svg {
+		max-width: min(200px, 40vh, 100%) !important;
+		max-height: min(200px, 40vh) !important;
+	}
+}
+
+/* ========== Numeric keypad sizing + gap above bottom nav ========== */
+.numeric-keypad {
+	width: 100%;
+	padding: 12px 14px 14px;
+	margin: 0 auto;
+	/* slightly closer to bottom nav, still clear of it */
+	margin-bottom: calc(6px + var(--nav-height) + var(--safe-bottom));
+	background: rgba(22, 33, 62, 0.98);
+	border: 1px solid var(--border);
+	border-radius: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+	box-sizing: border-box;
+	pointer-events: auto;
+}
+
+.numeric-keypad-row {
+	display: flex;
+	gap: 8px;
+	justify-content: center;
+}
+
+.numeric-key {
+	flex: 1;
+	max-width: 96px;
+	height: 42px;
+	border-radius: 11px;
+	border: 1px solid var(--border);
+	background: rgba(255, 255, 255, 0.1);
+	color: var(--text);
+	font-size: 17px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.numeric-key:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.numeric-key-muted {
+	background: rgba(255, 255, 255, 0.06);
+}
+
+.numeric-key-enter {
+	height: 42px;
+	border-radius: 11px;
+	border: none;
+	background: var(--primary);
+	color: #000;
+	font-weight: 700;
+	font-size: 15px;
+	cursor: pointer;
+	margin-top: 2px;
+}
+
+.numeric-key-enter:disabled {
+	background: rgba(255, 255, 255, 0.08);
+	color: var(--text-muted);
+	cursor: default;
+}
+
+/* Keypad dock: no fixed; gap handled by keypad margin */
+.keypad-dock {
+	position: relative !important;
+	bottom: auto !important;
+	left: auto !important;
+	right: auto !important;
+	flex: 0 0 auto;
+	width: 100%;
+	padding-left: 10px;
+	padding-right: 10px;
+	padding-bottom: 0;
+	box-sizing: border-box;
+	pointer-events: none;
+	z-index: 40;
+}
+
+.keypad-dock-inner {
+	max-width: 400px;
+	margin: 0 auto;
+	pointer-events: auto;
+}
+
+/* Play column uses available height on short phones */
+.play-with-keypad {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+}
+
+.play-with-keypad .play-main {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-x: hidden;
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
+	overscroll-behavior: contain;
+	padding-bottom: 4px;
+}
+
+@media (max-height: 720px) {
+	:root {
+		--keypad-gap: 8px;
+		--header-height: 40px;
+	}
+
+	.numeric-key,
+	.numeric-key-enter {
+		height: 34px;
+		font-size: 15px;
+		border-radius: 9px;
+	}
+
+	.numeric-keypad {
+		gap: 6px;
+		padding: 8px 10px 10px;
+		border-radius: 14px;
+		margin-bottom: calc(4px + var(--nav-height) + var(--safe-bottom));
+	}
+
+	.task-card {
+		padding: 10px 8px !important;
+		margin-bottom: 6px !important;
+	}
+
+	.task-card .combo-diagram,
+	.task-card svg {
+		max-width: min(160px, 100%) !important;
+		max-height: min(26dvh, 140px) !important;
+	}
+
+	.answer-input {
+		padding: 8px 10px !important;
+		font-size: 16px !important;
+		margin-bottom: 6px !important;
+	}
+}
+
+@media (max-height: 600px) {
+	:root {
+		--keypad-gap: 6px;
+		--nav-height: 50px;
+	}
+
+	.numeric-key,
+	.numeric-key-enter {
+		height: 30px;
+		font-size: 14px;
+	}
+
+	.numeric-keypad {
+		gap: 4px;
+		padding: 6px 8px 8px;
+		margin-bottom: calc(4px + var(--nav-height) + var(--safe-bottom));
+	}
+
+	.task-card .combo-diagram,
+	.task-card svg {
+		max-height: min(22dvh, 110px) !important;
+	}
+}
+
+/* page-shell already needs nav padding — ensure it */
+.page-shell {
+	padding-bottom: 0; /* keypad carries nav offset when present */
+}
+
+/* menu / non-keypad pages still need nav clearance */
+.page-shell:not(:has(.keypad-dock)) {
+	padding-bottom: calc(var(--nav-height) + var(--safe-bottom) + 12px);
 }
