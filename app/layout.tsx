@@ -74,7 +74,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className="dark">
       <body className={`${inter.className} app-shell`}>
         <AuthProvider>
-					<PortraitLock />
+					{/*<PortraitLock />*/}
           <div className="app-root">
             <AdBanner />
             <div className="app-main">{children}</div>

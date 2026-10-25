@@ -49,9 +49,7 @@
 	--keypad-gap: 12px;
 	--header-height: 48px;
 	/* usable height for train screens (ad + header + bottom nav) */
-	--play-height: calc(
-		100dvh - var(--safe-top) - var(--ad-height) - var(--header-height) - var(--nav-height) - var(--safe-bottom)
-	);
+	--play-height: calc(100dvh - var(--safe-top) - var(--ad-height) - var(--header-height) - var(--nav-height) - var(--safe-bottom));
 }
 
 /* No ad banner (Pro) — reclaim ad strip */
@@ -858,7 +856,9 @@ body {
 
 /* ========== Force portrait layout even in landscape ========== */
 @media (orientation: landscape) {
-	html, body {
+
+	html,
+	body {
 		height: auto !important;
 		overflow: auto !important;
 	}
@@ -870,9 +870,9 @@ body {
 		overflow: visible !important;
 	}
 
-	.app-root > .page-shell,
-	.app-root > .app-shell,
-	.app-root > .app-main {
+	.app-root>.page-shell,
+	.app-root>.app-shell,
+	.app-root>.app-main {
 		height: auto !important;
 		max-height: none !important;
 		min-height: 0 !important;
@@ -1109,7 +1109,8 @@ body {
 
 /* page-shell already needs nav padding — ensure it */
 .page-shell {
-	padding-bottom: 0; /* keypad carries nav offset when present */
+	padding-bottom: 0;
+	/* keypad carries nav offset when present */
 }
 
 /* menu / non-keypad pages still need nav clearance */
